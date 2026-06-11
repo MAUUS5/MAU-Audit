@@ -608,7 +608,7 @@ export default function App() {
   );
 
   return (
-    <div style={{ maxWidth: 430, margin: "0 auto", fontFamily: "system-ui, -apple-system, sans-serif", background: "#F8FAFC", minHeight: "100dvh", minHeight: "100dvh" }}>
+    <div style={{ maxWidth: 430, margin: "0 auto", fontFamily: "system-ui, -apple-system, sans-serif", background: "#F8FAFC", minHeight: "100dvh" }}>
 
       {!inWizard && (
         <div style={{ background: "#003A6B", padding: "env(safe-area-inset-top, 14px) 16px 16px", position: "sticky", top: 0, zIndex: 10 }}>
