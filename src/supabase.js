@@ -5,52 +5,77 @@ const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY)
 
-const LOCAL_KEY = 'mau-audits-cache'
+const AUDIT_KEY = 'mau-audits-cache'
+const SCHED_KEY = 'mau-schedules-cache'
 
-// Load all audits — tries Supabase first, falls back to localStorage cache
 export const loadAudits = async () => {
   try {
-    const { data, error } = await supabase
-      .from('audits')
-      .select('audit_data')
-      .order('submitted_at', { ascending: false })
+    const { data, error } = await supabase.from('audits').select('audit_data').order('submitted_at', { ascending: false })
     if (error) throw error
-    const audits = data.map(row => row.audit_data)
-    localStorage.setItem(LOCAL_KEY, JSON.stringify(audits))
+    const audits = data.map(r => r.audit_data)
+    localStorage.setItem(AUDIT_KEY, JSON.stringify(audits))
     return audits
   } catch (e) {
     console.warn('Supabase unavailable, using local cache:', e.message)
-    try { return JSON.parse(localStorage.getItem(LOCAL_KEY) || '[]') } catch { return [] }
+    try { return JSON.parse(localStorage.getItem(AUDIT_KEY) || '[]') } catch { return [] }
   }
 }
 
-// Save a single audit (upsert by id)
 export const saveAudit = async (audit) => {
-  // Always write to local cache immediately
   try {
-    const cached = JSON.parse(localStorage.getItem(LOCAL_KEY) || '[]')
-    const updated = [...cached.filter(a => a.id !== audit.id), audit]
-    localStorage.setItem(LOCAL_KEY, JSON.stringify(updated))
-  } catch { /* ignore */ }
-
-  // Then sync to Supabase
+    const cached = JSON.parse(localStorage.getItem(AUDIT_KEY) || '[]')
+    localStorage.setItem(AUDIT_KEY, JSON.stringify([...cached.filter(a => a.id !== audit.id), audit]))
+  } catch { }
   try {
     const { error } = await supabase.from('audits').upsert({
-      id: audit.id,
-      audit_data: audit,
+      id: audit.id, audit_data: audit,
       submitted_at: new Date(audit.submittedAt).toISOString(),
-      site: audit.site,
-      audit_type: audit.type,
-      auditor_name: audit.auditorName,
-      score_pct: Math.round(
-        audit.sections.reduce((tot, sec) =>
-          tot + sec.items.reduce((s, i) => s + (i.score ?? 0), 0), 0) /
-        Math.max(1, audit.sections.reduce((tot, sec) =>
-          tot + sec.items.filter(i => i.score !== null && i.score !== undefined).length * 3, 0)) * 100
-      )
+      site: audit.site, audit_type: audit.type, auditor_name: audit.auditorName,
+      score_pct: (() => {
+        let t = 0, m = 0
+        audit.sections.forEach(s => s.items.forEach(i => { if (i.score !== null && i.score !== undefined) { t += i.score; m += 3 } }))
+        return m > 0 ? Math.round((t / m) * 100) : 0
+      })()
     })
     if (error) throw error
+  } catch (e) { console.warn('Supabase sync failed:', e.message) }
+}
+
+export const loadSchedules = async () => {
+  try {
+    const { data, error } = await supabase.from('schedules').select('schedule_data').order('created_at', { ascending: false })
+    if (error) throw error
+    const schedules = data.map(r => r.schedule_data)
+    localStorage.setItem(SCHED_KEY, JSON.stringify(schedules))
+    return schedules
   } catch (e) {
-    console.warn('Could not sync to Supabase (will retry next load):', e.message)
+    console.warn('Supabase unavailable for schedules:', e.message)
+    try { return JSON.parse(localStorage.getItem(SCHED_KEY) || '[]') } catch { return [] }
   }
+}
+
+export const saveSchedule = async (schedule) => {
+  try {
+    const cached = JSON.parse(localStorage.getItem(SCHED_KEY) || '[]')
+    localStorage.setItem(SCHED_KEY, JSON.stringify([...cached.filter(s => s.id !== schedule.id), schedule]))
+  } catch { }
+  try {
+    const { error } = await supabase.from('schedules').upsert({
+      id: schedule.id, schedule_data: schedule,
+      created_at: new Date(schedule.createdAt).toISOString(),
+      site: schedule.site, audit_type: schedule.type, due_date: schedule.dueDate
+    })
+    if (error) throw error
+  } catch (e) { console.warn('Schedule sync failed:', e.message) }
+}
+
+export const deleteSchedule = async (id) => {
+  try {
+    const cached = JSON.parse(localStorage.getItem(SCHED_KEY) || '[]')
+    localStorage.setItem(SCHED_KEY, JSON.stringify(cached.filter(s => s.id !== id)))
+  } catch { }
+  try {
+    const { error } = await supabase.from('schedules').delete().eq('id', id)
+    if (error) throw error
+  } catch (e) { console.warn('Schedule delete failed:', e.message) }
 }
