@@ -26,6 +26,7 @@ const SA_TEMPLATE = {
 };
 
 const TEMPLATES = { OA: OA_TEMPLATE, SA: SA_TEMPLATE };
+const SITES = ["US1", "US2", "US5", "US7", "US8", "US10", "Prime", "Tweel"];
 const SCORES = [
   { val: 3, label: "Meets / Exceeds", color: "#16A34A", bg: "#DCFCE7", text: "#14532D" },
   { val: 2, label: "Work in Progress", color: "#D97706", bg: "#FEF3C7", text: "#78350F" },
@@ -241,6 +242,11 @@ const CalendarView = ({ audits, schedules, onAddSchedule, onDeleteSchedule }) =>
   const inp = { width: "100%", padding: "10px 12px", border: "1px solid #D1D5DB", borderRadius: 8, fontSize: 14, boxSizing: "border-box", fontFamily: "inherit" };
   const lbl = { display: "block", fontSize: 13, fontWeight: 500, color: "#374151", marginBottom: 5 };
 
+  // All upcoming scheduled audits (not yet completed), soonest first
+  const upcomingSorted = [...schedules]
+    .filter(s => new Date(s.dueDate + "T12:00:00") >= new Date(today.getFullYear(), today.getMonth(), today.getDate()))
+    .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+
   return (
     <div style={{ padding: 16 }}>
 
@@ -259,43 +265,68 @@ const CalendarView = ({ audits, schedules, onAddSchedule, onDeleteSchedule }) =>
         </div>
       )}
 
-      {/* Month navigator */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-        <button onClick={() => setViewDate(new Date(year, month - 1, 1))} style={{ background: "none", border: "none", cursor: "pointer", padding: "4px 10px", fontSize: 20, color: "#64748B" }}>‹</button>
-        <span style={{ fontWeight: 700, fontSize: 17, color: "#0F172A" }}>{monthName} {year}</span>
-        <button onClick={() => setViewDate(new Date(year, month + 1, 1))} style={{ background: "none", border: "none", cursor: "pointer", padding: "4px 10px", fontSize: 20, color: "#64748B" }}>›</button>
-      </div>
+      {/* Sidebar (scheduled list) + Calendar, side by side */}
+      <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
 
-      {/* Day-of-week headers */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", marginBottom: 4 }}>
-        {["S","M","T","W","T","F","S"].map((d, i) => (
-          <div key={i} style={{ textAlign: "center", fontSize: 11, fontWeight: 700, color: "#94A3B8", padding: "4px 0" }}>{d}</div>
-        ))}
-      </div>
-
-      {/* Calendar grid */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2, background: "white", borderRadius: 12, border: "0.5px solid #E2E8F0", padding: 8, marginBottom: 12 }}>
-        {Array.from({ length: firstDOW }).map((_, i) => <div key={`e${i}`} />)}
-        {Array.from({ length: daysInMonth }).map((_, i) => {
-          const day = i + 1;
-          const isToday = isCurMonth && day === today.getDate();
-          const isSel = day === selectedDay;
-          const { hasCompleted, hasScheduled, hasOverdue } = getDayStatus(day);
-          return (
-            <div key={day} onClick={() => setSelectedDay(day)} style={{ textAlign: "center", padding: "5px 2px", borderRadius: 8, cursor: "pointer", background: isSel ? "#003A6B" : isToday ? "#EFF6FF" : "transparent", border: isToday && !isSel ? "1px solid #BFDBFE" : "1px solid transparent" }}>
-              <div style={{ fontSize: 13, fontWeight: isToday || isSel ? 700 : 400, color: isSel ? "white" : isToday ? "#003A6B" : "#374151", lineHeight: 1.4 }}>{day}</div>
-              <div style={{ display: "flex", justifyContent: "center", gap: 2, marginTop: 2 }}>
-                {hasOverdue   && <div style={{ width: 5, height: 5, borderRadius: "50%", background: "#DC2626" }} />}
-                {hasScheduled && <div style={{ width: 5, height: 5, borderRadius: "50%", background: "#0369A1" }} />}
-                {hasCompleted && <div style={{ width: 5, height: 5, borderRadius: "50%", background: "#16A34A" }} />}
+        {/* Left sidebar: scheduled audits list */}
+        <div style={{ width: 108, flexShrink: 0, background: "white", borderRadius: 12, border: "0.5px solid #E2E8F0", padding: 10, maxHeight: 360, overflowY: "auto" }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: "#94A3B8", letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: 8 }}>Scheduled</div>
+          {upcomingSorted.length === 0 ? (
+            <div style={{ fontSize: 11, color: "#CBD5E1", lineHeight: 1.4 }}>None upcoming</div>
+          ) : upcomingSorted.map((s, i) => (
+            <button key={i} onClick={() => { setViewDate(new Date(s.dueDate + "T12:00:00").getFullYear() === year && new Date(s.dueDate + "T12:00:00").getMonth() === month ? viewDate : new Date(new Date(s.dueDate).getFullYear(), new Date(s.dueDate).getMonth(), 1)); setSelectedDay(new Date(s.dueDate + "T12:00:00").getDate()); }}
+              style={{ width: "100%", textAlign: "left", background: "none", border: "none", borderBottom: i < upcomingSorted.length - 1 ? "0.5px solid #F1F5F9" : "none", padding: "7px 0", cursor: "pointer" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 2 }}>
+                <div style={{ width: 6, height: 6, borderRadius: "50%", background: isOverdue(s) ? "#DC2626" : "#0369A1", flexShrink: 0 }} />
+                <span style={{ fontSize: 11, fontWeight: 700, color: "#1E293B" }}>{s.type}</span>
               </div>
-            </div>
-          );
-        })}
+              <div style={{ fontSize: 11, color: "#374151", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.site}</div>
+              <div style={{ fontSize: 10, color: "#94A3B8" }}>{fmt(s.dueDate)}</div>
+            </button>
+          ))}
+        </div>
+
+        {/* Right: calendar */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          {/* Month navigator */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+            <button onClick={() => setViewDate(new Date(year, month - 1, 1))} style={{ background: "none", border: "none", cursor: "pointer", padding: "4px 6px", fontSize: 20, color: "#64748B" }}>‹</button>
+            <span style={{ fontWeight: 700, fontSize: 15, color: "#0F172A" }}>{monthName} {year}</span>
+            <button onClick={() => setViewDate(new Date(year, month + 1, 1))} style={{ background: "none", border: "none", cursor: "pointer", padding: "4px 6px", fontSize: 20, color: "#64748B" }}>›</button>
+          </div>
+
+          {/* Day-of-week headers */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", marginBottom: 4 }}>
+            {["S","M","T","W","T","F","S"].map((d, i) => (
+              <div key={i} style={{ textAlign: "center", fontSize: 10, fontWeight: 700, color: "#94A3B8", padding: "4px 0" }}>{d}</div>
+            ))}
+          </div>
+
+          {/* Calendar grid */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 1, background: "white", borderRadius: 12, border: "0.5px solid #E2E8F0", padding: 6 }}>
+            {Array.from({ length: firstDOW }).map((_, i) => <div key={`e${i}`} />)}
+            {Array.from({ length: daysInMonth }).map((_, i) => {
+              const day = i + 1;
+              const isToday = isCurMonth && day === today.getDate();
+              const isSel = day === selectedDay;
+              const { hasCompleted, hasScheduled, hasOverdue } = getDayStatus(day);
+              return (
+                <div key={day} onClick={() => setSelectedDay(day)} style={{ textAlign: "center", padding: "4px 1px", borderRadius: 6, cursor: "pointer", background: isSel ? "#003A6B" : isToday ? "#EFF6FF" : "transparent", border: isToday && !isSel ? "1px solid #BFDBFE" : "1px solid transparent" }}>
+                  <div style={{ fontSize: 12, fontWeight: isToday || isSel ? 700 : 400, color: isSel ? "white" : isToday ? "#003A6B" : "#374151", lineHeight: 1.3 }}>{day}</div>
+                  <div style={{ display: "flex", justifyContent: "center", gap: 2, marginTop: 2 }}>
+                    {hasOverdue   && <div style={{ width: 4, height: 4, borderRadius: "50%", background: "#DC2626" }} />}
+                    {hasScheduled && <div style={{ width: 4, height: 4, borderRadius: "50%", background: "#0369A1" }} />}
+                    {hasCompleted && <div style={{ width: 4, height: 4, borderRadius: "50%", background: "#16A34A" }} />}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </div>
 
       {/* Legend */}
-      <div style={{ display: "flex", gap: 14, marginBottom: 16 }}>
+      <div style={{ display: "flex", gap: 14, marginTop: 12, marginBottom: 16 }}>
         {[["#DC2626","Overdue"],["#0369A1","Scheduled"],["#16A34A","Completed"]].map(([c,l]) => (
           <div key={l} style={{ display: "flex", alignItems: "center", gap: 4 }}>
             <div style={{ width: 8, height: 8, borderRadius: "50%", background: c }} />
@@ -366,7 +397,10 @@ const CalendarView = ({ audits, schedules, onAddSchedule, onDeleteSchedule }) =>
           <h3 style={{ margin: "0 0 16px", fontSize: 16, fontWeight: 700, color: "#0F172A" }}>Schedule an audit</h3>
 
           <label style={lbl}>Site *</label>
-          <input value={form.site} onChange={e => setForm(f => ({ ...f, site: e.target.value }))} placeholder="e.g. Atlanta – Plant A" style={{ ...inp, marginBottom: 12 }} />
+          <select value={form.site} onChange={e => setForm(f => ({ ...f, site: e.target.value }))} style={{ ...inp, marginBottom: 12 }}>
+            <option value="">Select a site...</option>
+            {SITES.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
 
           <label style={lbl}>Audit type *</label>
           <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
@@ -425,7 +459,10 @@ const NewAudit = ({ type, onDone, onCancel }) => {
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}><TypeBadge type={type} /><h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: "#0F172A" }}>{tmpl.label}</h2></div>
       <p style={{ color: "#64748B", fontSize: 14, margin: "0 0 24px" }}>Enter audit details to begin scoring</p>
       <label style={lbl}>Site being audited *</label>
-      <input value={audit.site} onChange={e => upd("site", e.target.value)} placeholder="e.g. Atlanta – Plant A" style={{ ...inp, marginBottom: 16 }} />
+      <select value={audit.site} onChange={e => upd("site", e.target.value)} style={{ ...inp, marginBottom: 16 }}>
+        <option value="">Select a site...</option>
+        {SITES.map(s => <option key={s} value={s}>{s}</option>)}
+      </select>
       <label style={lbl}>Auditor name *</label>
       <input value={audit.auditorName} onChange={e => upd("auditorName", e.target.value)} placeholder="Your full name" style={{ ...inp, marginBottom: 16 }} />
       <label style={lbl}>Auditor's home site *</label>
