@@ -152,8 +152,8 @@ const SiteFolders = ({ audits, onView, prevFor }) => {
     bySite[audit.site].push(audit);
   });
 
-  // Sort sites by most recent audit date
-  const siteList = Object.entries(bySite).sort((a, b) => b[1][0].submittedAt - a[1][0].submittedAt);
+  // Use the same SITES order as the dropdown, only show sites that have audits
+  const siteList = SITES.filter(s => bySite[s]).map(s => [s, bySite[s]]);
 
   if (siteList.length === 0) return (
     <div style={{ background: "white", borderRadius: 12, border: "0.5px solid #E2E8F0", padding: "36px 20px", textAlign: "center" }}>
@@ -322,7 +322,35 @@ const Dashboard = ({ audits, schedules, onNew, onView }) => {
         <div style={{ fontSize: 11, color: "#94A3B8", marginTop: 8 }}>OA weighted: Safety 30% · Quality 25% · Delivery 25% · Cost 20%</div>
       </div>
 
-      <SiteFolders audits={audits} onView={onView} prevFor={prevFor} />
+      <div style={{ fontSize: 11, fontWeight: 600, color: "#94A3B8", letterSpacing: "0.07em", textTransform: "uppercase", marginBottom: 12 }}>Recent audits</div>
+      {recent.length === 0 ? (
+        <div style={{ background: "white", borderRadius: 12, border: "0.5px solid #E2E8F0", padding: "36px 20px", textAlign: "center" }}>
+          <i className="ti ti-clipboard" style={{ fontSize: 40, color: "#CBD5E1", display: "block", marginBottom: 10 }} />
+          <div style={{ color: "#94A3B8", fontSize: 14 }}>No audits yet. Start your first one above.</div>
+        </div>
+      ) : recent.map(audit => {
+        const s = calcScore(audit);
+        const prev = prevFor(audit);
+        const delta = prev ? s.pct - calcScore(prev).pct : null;
+        return (
+          <button key={audit.id} onClick={() => onView(audit)} style={{ width: "100%", background: "white", border: "0.5px solid #E2E8F0", borderRadius: 12, padding: 14, marginBottom: 10, textAlign: "left", cursor: "pointer", display: "flex", alignItems: "center", gap: 14 }}>
+            <Ring pct={s.pct} size={58} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
+                <span style={{ fontWeight: 600, fontSize: 15, color: "#0F172A", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{audit.site || "—"}</span>
+                <TypeBadge type={audit.type} />
+              </div>
+              <div style={{ fontSize: 12, color: "#64748B", marginBottom: 4 }}>{fmt(audit.date)} · {audit.auditorName || "—"}</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                {s.weighted ? <span style={{ fontSize: 12, color: "#64748B" }}>Weighted: {s.total}/4.00</span> : <span style={{ fontSize: 12, color: "#64748B" }}>{s.total}/{s.max} pts</span>}
+                {s.failing > 0 && <span style={{ fontSize: 11, color: "#DC2626", fontWeight: 600 }}>⚠ {s.failing} need improvement</span>}
+                <Delta d={delta} />
+              </div>
+            </div>
+            <i className="ti ti-chevron-right" style={{ fontSize: 16, color: "#CBD5E1", flexShrink: 0 }} />
+          </button>
+        );
+      })}
     </div>
   );
 };
@@ -748,29 +776,53 @@ const Detail = ({ audit, prevAudit, onBack }) => {
 
 const History = ({ audits, onView }) => {
   const [filter, setFilter] = useState("all");
-  const sorted = [...audits].filter(a => filter === "all" || a.type === filter).sort((a, b) => b.submittedAt - a.submittedAt);
+  const [view, setView] = useState("site"); // "site" | "list"
+
+  const prevFor = (audit) => audits
+    .filter(a => a.site === audit.site && a.type === audit.type && a.id !== audit.id && a.submittedAt < audit.submittedAt)
+    .sort((a, b) => b.submittedAt - a.submittedAt)[0];
+
+  const filtered = [...audits].filter(a => filter === "all" || a.type === filter);
+  const sorted = filtered.sort((a, b) => b.submittedAt - a.submittedAt);
+
   return (
     <div style={{ padding: 16 }}>
-      <div style={{ display: "flex", gap: 8, marginBottom: 18 }}>
-        {[["all","All"],["OA","Operations"],["SA","Safety"]].map(([v, l]) => (
-          <button key={v} onClick={() => setFilter(v)} style={{ padding: "7px 14px", borderRadius: 20, background: filter === v ? "#003A6B" : "white", color: filter === v ? "white" : "#374151", border: "0.5px solid #D1D5DB", fontSize: 13, fontWeight: 500, cursor: "pointer" }}>{l}</button>
-        ))}
+      {/* Filter row + view toggle */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
+        <div style={{ display: "flex", gap: 8 }}>
+          {[["all","All"],["OA","OA"],["SA","SA"]].map(([v, l]) => (
+            <button key={v} onClick={() => setFilter(v)} style={{ padding: "7px 14px", borderRadius: 20, background: filter === v ? "#003A6B" : "white", color: filter === v ? "white" : "#374151", border: "0.5px solid #D1D5DB", fontSize: 13, fontWeight: 500, cursor: "pointer" }}>{l}</button>
+          ))}
+        </div>
+        <div style={{ display: "flex", background: "#F1F5F9", borderRadius: 8, padding: 2 }}>
+          {[["site", "ti-folder"],["list", "ti-list"]].map(([v, icon]) => (
+            <button key={v} onClick={() => setView(v)} style={{ padding: "5px 10px", borderRadius: 6, border: "none", background: view === v ? "white" : "transparent", color: view === v ? "#003A6B" : "#94A3B8", cursor: "pointer", boxShadow: view === v ? "0 1px 3px rgba(0,0,0,0.1)" : "none" }}>
+              <i className={`ti ${icon}`} style={{ fontSize: 16 }} />
+            </button>
+          ))}
+        </div>
       </div>
-      {sorted.length === 0 ? <div style={{ textAlign: "center", padding: "48px 16px", color: "#94A3B8" }}>No audits found.</div>
-      : sorted.map(audit => {
-        const s = calcScore(audit);
-        return (
-          <button key={audit.id} onClick={() => onView(audit)} style={{ width: "100%", background: "white", border: "0.5px solid #E2E8F0", borderRadius: 12, padding: 14, marginBottom: 10, textAlign: "left", cursor: "pointer", display: "flex", alignItems: "center", gap: 12 }}>
-            <div style={{ width: 50, height: 50, borderRadius: "50%", background: gradeColor(s.pct) + "18", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 14, color: gradeColor(s.pct), flexShrink: 0 }}>{s.pct}%</div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}><span style={{ fontWeight: 600, fontSize: 14, color: "#0F172A", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{audit.site || "—"}</span><TypeBadge type={audit.type} /></div>
-              <div style={{ fontSize: 12, color: "#64748B" }}>{fmt(audit.date)} · {audit.auditorName}</div>
-              {s.failing > 0 && <div style={{ fontSize: 11, color: "#DC2626", fontWeight: 600, marginTop: 2 }}>⚠ {s.failing} need improvement</div>}
-            </div>
-            <i className="ti ti-chevron-right" style={{ fontSize: 16, color: "#CBD5E1", flexShrink: 0 }} />
-          </button>
-        );
-      })}
+
+      {sorted.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "48px 16px", color: "#94A3B8" }}>No audits found.</div>
+      ) : view === "site" ? (
+        <SiteFolders audits={filtered} onView={onView} prevFor={prevFor} />
+      ) : (
+        sorted.map(audit => {
+          const s = calcScore(audit);
+          return (
+            <button key={audit.id} onClick={() => onView(audit)} style={{ width: "100%", background: "white", border: "0.5px solid #E2E8F0", borderRadius: 12, padding: 14, marginBottom: 10, textAlign: "left", cursor: "pointer", display: "flex", alignItems: "center", gap: 12 }}>
+              <div style={{ width: 50, height: 50, borderRadius: "50%", background: gradeColor(s.pct) + "18", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 14, color: gradeColor(s.pct), flexShrink: 0 }}>{s.pct}%</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}><span style={{ fontWeight: 600, fontSize: 14, color: "#0F172A", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{audit.site || "—"}</span><TypeBadge type={audit.type} /></div>
+                <div style={{ fontSize: 12, color: "#64748B" }}>{fmt(audit.date)} · {audit.auditorName}</div>
+                {s.failing > 0 && <div style={{ fontSize: 11, color: "#DC2626", fontWeight: 600, marginTop: 2 }}>⚠ {s.failing} need improvement</div>}
+              </div>
+              <i className="ti ti-chevron-right" style={{ fontSize: 16, color: "#CBD5E1", flexShrink: 0 }} />
+            </button>
+          );
+        })
+      )}
     </div>
   );
 };
