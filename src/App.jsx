@@ -252,10 +252,10 @@ const SiteFolders = ({ audits, onView, prevFor }) => {
 
 const Dashboard = ({ audits, schedules, onNew, onView }) => {
   const today = new Date();
-  const recent = [...audits].sort((a, b) => b.submittedAt - a.submittedAt).slice(0, 6);
-  const avg = audits.length ? Math.round(audits.reduce((s, a) => s + calcScore(a).pct, 0) / audits.length) : 0;
-  const totalFailing = audits.reduce((s, a) => s + calcScore(a).failing, 0);
-  const sites = new Set(audits.map(a => a.site)).size;
+  // Only count audits that have a site assigned
+  const siteAudits = audits.filter(a => a.site && SITES.includes(a.site));
+  const avg = siteAudits.length ? Math.round(siteAudits.reduce((s, a) => s + calcScore(a).pct, 0) / siteAudits.length) : 0;
+  const sites = new Set(siteAudits.map(a => a.site)).size;
   const overdueCount = schedules.filter(s => {
     const due = new Date(s.dueDate + "T12:00:00");
     if (due >= today) return false;
@@ -268,7 +268,7 @@ const Dashboard = ({ audits, schedules, onNew, onView }) => {
     <div style={{ padding: 16 }}>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 18 }}>
         {[
-          { label: "Audits", val: audits.length, icon: "ti-clipboard-check", color: "#003A6B" },
+          { label: "Audits", val: siteAudits.length, icon: "ti-clipboard-check", color: "#003A6B" },
           { label: "Avg score", val: `${avg}%`, icon: "ti-chart-line", color: gradeColor(avg) },
           { label: "Sites", val: sites, icon: "ti-building", color: "#003A6B" }
         ].map(st => (
