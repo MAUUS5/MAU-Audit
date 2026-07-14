@@ -69,7 +69,7 @@ const calcScore = (audit) => {
   if (isWeighted) {
     let weightedSum = 0, totalWeight = 0;
     sections.forEach(sec => {
-      const scored = sec.items.filter(i => i.score !== null && i.score !== undefined);
+      const scored = sec.items.filter(i => i.score !== null && i.score !== undefined && i.score !== "na");
       if (!scored.length) return;
       const avg = scored.reduce((s, i) => s + i.score, 0) / scored.length;
       weightedSum += avg * sec.weight; totalWeight += sec.weight;
@@ -80,7 +80,7 @@ const calcScore = (audit) => {
   }
   let total = 0, max = 0;
   sections.forEach(sec => sec.items.forEach(item => {
-    if (item.score === null || item.score === undefined) return;
+    if (item.score === null || item.score === undefined || item.score === "na") return;
     total += item.score; max += 4;
     if (item.score === 1) failing++;
   }));
@@ -322,35 +322,6 @@ const Dashboard = ({ audits, schedules, onNew, onView }) => {
         <div style={{ fontSize: 11, color: "#94A3B8", marginTop: 8 }}>OA weighted: Safety 30% · Quality 25% · Delivery 25% · Cost 20%</div>
       </div>
 
-      <div style={{ fontSize: 11, fontWeight: 600, color: "#94A3B8", letterSpacing: "0.07em", textTransform: "uppercase", marginBottom: 12 }}>Recent audits</div>
-      {recent.length === 0 ? (
-        <div style={{ background: "white", borderRadius: 12, border: "0.5px solid #E2E8F0", padding: "36px 20px", textAlign: "center" }}>
-          <i className="ti ti-clipboard" style={{ fontSize: 40, color: "#CBD5E1", display: "block", marginBottom: 10 }} />
-          <div style={{ color: "#94A3B8", fontSize: 14 }}>No audits yet. Start your first one above.</div>
-        </div>
-      ) : recent.map(audit => {
-        const s = calcScore(audit);
-        const prev = prevFor(audit);
-        const delta = prev ? s.pct - calcScore(prev).pct : null;
-        return (
-          <button key={audit.id} onClick={() => onView(audit)} style={{ width: "100%", background: "white", border: "0.5px solid #E2E8F0", borderRadius: 12, padding: 14, marginBottom: 10, textAlign: "left", cursor: "pointer", display: "flex", alignItems: "center", gap: 14 }}>
-            <Ring pct={s.pct} size={58} />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
-                <span style={{ fontWeight: 600, fontSize: 15, color: "#0F172A", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{audit.site || "—"}</span>
-                <TypeBadge type={audit.type} />
-              </div>
-              <div style={{ fontSize: 12, color: "#64748B", marginBottom: 4 }}>{fmt(audit.date)} · {audit.auditorName || "—"}</div>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                {s.weighted ? <span style={{ fontSize: 12, color: "#64748B" }}>Weighted: {s.total}/4.00</span> : <span style={{ fontSize: 12, color: "#64748B" }}>{s.total}/{s.max} pts</span>}
-                {s.failing > 0 && <span style={{ fontSize: 11, color: "#DC2626", fontWeight: 600 }}>⚠ {s.failing} need improvement</span>}
-                <Delta d={delta} />
-              </div>
-            </div>
-            <i className="ti ti-chevron-right" style={{ fontSize: 16, color: "#CBD5E1", flexShrink: 0 }} />
-          </button>
-        );
-      })}
     </div>
   );
 };
@@ -613,18 +584,26 @@ const NewAudit = ({ type, onDone, onCancel }) => {
           {sec.items.map((item, ii) => {
             const criteria = CRITERIA[item.name];
             const isExpanded = expandedCriteria === `${secIdx}-${ii}`;
-            const borderCol = item.score === 1 ? "#DC2626" : item.score === null ? "#E2E8F0" : item.score === 4 ? "#16A34A" : item.score === 3 ? "#0369A1" : "#D97706";
+            const isNA = item.score === "na";
+            const needsAction = item.score === null || (item.score !== "na" && item.score <= 2);
+            const missingAction = item.score === 1 && !item.actionItem?.trim();
+            const borderCol = item.score === 1 ? "#DC2626" : item.score === "na" ? "#CBD5E1" : item.score === null ? "#E2E8F0" : item.score === 4 ? "#16A34A" : item.score === 3 ? "#0369A1" : "#D97706";
             return (
               <div key={ii} style={{ background: "white", borderRadius: 12, border: "0.5px solid #E2E8F0", borderLeft: `3px solid ${borderCol}`, padding: 14, marginBottom: 12 }}>
                 <p style={{ margin: "0 0 10px", fontWeight: 600, fontSize: 14, color: "#1E293B", lineHeight: 1.4 }}>{item.name}</p>
-                <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
+                {/* Score buttons: 4, 3, 2, 1, N/A */}
+                <div style={{ display: "flex", gap: 5, marginBottom: 8 }}>
                   {SCORES.map(sc => (
                     <button key={sc.val} onClick={() => { updItem(secIdx, ii, "score", item.score === sc.val ? null : sc.val); setExpandedCriteria(null); }}
-                      style={{ flex: 1, padding: "8px 0", border: `2px solid ${item.score === sc.val ? sc.color : "#E2E8F0"}`, borderRadius: 8, background: item.score === sc.val ? sc.bg : "white", color: item.score === sc.val ? sc.text : "#94A3B8", fontWeight: 700, fontSize: 16, cursor: "pointer" }}>{sc.val}</button>
+                      style={{ flex: 1, padding: "8px 0", border: `2px solid ${item.score === sc.val ? sc.color : "#E2E8F0"}`, borderRadius: 8, background: item.score === sc.val ? sc.bg : "white", color: item.score === sc.val ? sc.text : "#94A3B8", fontWeight: 700, fontSize: 15, cursor: "pointer" }}>{sc.val}</button>
                   ))}
+                  <button onClick={() => { updItem(secIdx, ii, "score", isNA ? null : "na"); setExpandedCriteria(null); }}
+                    style={{ flex: 1, padding: "8px 0", border: `2px solid ${isNA ? "#64748B" : "#E2E8F0"}`, borderRadius: 8, background: isNA ? "#F1F5F9" : "white", color: isNA ? "#374151" : "#CBD5E1", fontWeight: 700, fontSize: 11, cursor: "pointer" }}>N/A</button>
                 </div>
-                {item.score !== null && <div style={{ fontSize: 12, color: getScoreInfo(item.score).color, marginBottom: 6, fontWeight: 500 }}>{getScoreInfo(item.score).label}</div>}
-                {criteria && (
+                {item.score !== null && item.score !== "na" && <div style={{ fontSize: 12, color: getScoreInfo(item.score).color, marginBottom: 6, fontWeight: 500 }}>{getScoreInfo(item.score).label}</div>}
+                {isNA && <div style={{ fontSize: 12, color: "#94A3B8", marginBottom: 6 }}>Not applicable — excluded from score</div>}
+                {missingAction && <div style={{ fontSize: 12, color: "#DC2626", fontWeight: 600, marginBottom: 6 }}>⚠ Action item required for score of 1</div>}
+                {criteria && !isNA && (
                   <button onClick={() => setExpandedCriteria(isExpanded ? null : `${secIdx}-${ii}`)}
                     style={{ background: "none", border: "none", color: "#0369A1", fontSize: 12, cursor: "pointer", padding: 0, marginBottom: 8, display: "flex", alignItems: "center", gap: 4 }}>
                     <i className={`ti ${isExpanded ? "ti-chevron-up" : "ti-chevron-down"}`} style={{ fontSize: 12 }} />
@@ -641,18 +620,33 @@ const NewAudit = ({ type, onDone, onCancel }) => {
                     ))}
                   </div>
                 )}
-                <textarea placeholder="Comments (optional)..." value={item.comment} onChange={e => updItem(secIdx, ii, "comment", e.target.value)} rows={2}
-                  style={{ width: "100%", padding: "8px 10px", border: "1px solid #E2E8F0", borderRadius: 8, fontSize: 13, resize: "none", boxSizing: "border-box", fontFamily: "inherit", marginBottom: (item.score === null || item.score <= 2) ? 8 : 0 }} />
-                {(item.score === null || item.score <= 2) && (
-                  <input placeholder="Action item..." value={item.actionItem} onChange={e => updItem(secIdx, ii, "actionItem", e.target.value)}
-                    style={{ width: "100%", padding: "8px 10px", border: "1px solid #E2E8F0", borderRadius: 8, fontSize: 13, boxSizing: "border-box", fontFamily: "inherit" }} />
+                {!isNA && (
+                  <textarea placeholder="Comments (optional)..." value={item.comment} onChange={e => updItem(secIdx, ii, "comment", e.target.value)} rows={2}
+                    style={{ width: "100%", padding: "8px 10px", border: "1px solid #E2E8F0", borderRadius: 8, fontSize: 13, resize: "none", boxSizing: "border-box", fontFamily: "inherit", marginBottom: needsAction ? 8 : 0 }} />
+                )}
+                {needsAction && !isNA && (
+                  <>
+                    <input placeholder={item.score === 1 ? "Action item (required)..." : "Action item (optional)..."} value={item.actionItem}
+                      onChange={e => updItem(secIdx, ii, "actionItem", e.target.value)}
+                      style={{ width: "100%", padding: "8px 10px", border: `1px solid ${missingAction ? "#DC2626" : "#E2E8F0"}`, borderRadius: 8, fontSize: 13, boxSizing: "border-box", fontFamily: "inherit", marginBottom: 8 }} />
+                    <input type="date" placeholder="Action item due date..." value={item.actionDue}
+                      onChange={e => updItem(secIdx, ii, "actionDue", e.target.value)}
+                      style={{ width: "100%", padding: "8px 10px", border: "1px solid #E2E8F0", borderRadius: 8, fontSize: 13, boxSizing: "border-box", fontFamily: "inherit" }} />
+                  </>
                 )}
               </div>
             );
           })}
-          <button onClick={() => setStep(s => s + 1)} style={{ width: "100%", background: "#003A6B", color: "white", border: "none", borderRadius: 12, padding: 15, fontSize: 16, fontWeight: 600, cursor: "pointer", marginTop: 4 }}>
-            {secIdx + 1 === numSec ? "Review audit →" : "Next section →"}
-          </button>
+          {/* Validate score 1 items have action items before advancing */}
+          {(() => {
+            const missingItems = sec.items.filter(i => i.score === 1 && !i.actionItem?.trim());
+            const canAdvance = missingItems.length === 0;
+            return (
+              <button onClick={() => canAdvance && setStep(s => s + 1)} style={{ width: "100%", background: canAdvance ? "#003A6B" : "#CBD5E1", color: "white", border: "none", borderRadius: 12, padding: 15, fontSize: 16, fontWeight: 600, cursor: canAdvance ? "pointer" : "default", marginTop: 4 }}>
+                {!canAdvance ? `Add action item${missingItems.length > 1 ? "s" : ""} for ${missingItems.length} item${missingItems.length > 1 ? "s" : ""} scored 1` : secIdx + 1 === numSec ? "Review audit →" : "Next section →"}
+              </button>
+            );
+          })()}
         </div>
       </div>
     );
@@ -827,43 +821,159 @@ const History = ({ audits, onView }) => {
   );
 };
 
-// ─────────────────────────── BENCHMARK ───────────────────────────
+// ─────────────────────────── SITE DASHBOARD ───────────────────────────
 
 const Benchmark = ({ audits }) => {
-  const sites = {};
-  audits.forEach(a => { if (!sites[a.site]) sites[a.site] = []; sites[a.site].push(a); });
-  const siteList = Object.entries(sites).map(([site, list]) => {
-    const sorted = list.sort((a, b) => b.submittedAt - a.submittedAt);
-    const latest = calcScore(sorted[0]), avg = Math.round(list.reduce((s, a) => s + calcScore(a).pct, 0) / list.length), prev = sorted[1] ? calcScore(sorted[1]) : null;
-    return { site, latest: latest.pct, latestFailing: latest.failing, avg, count: list.length, delta: prev ? latest.pct - prev.pct : null };
-  }).sort((a, b) => b.latest - a.latest);
+  const [expanded, setExpanded] = useState({});
+  const toggle = (site) => setExpanded(p => ({ ...p, [site]: !p[site] }));
+
+  // Build per-site data
+  const siteData = SITES.map(site => {
+    const siteAudits = audits.filter(a => a.site === site);
+    const oaAudits = [...siteAudits.filter(a => a.type === "OA")].sort((a, b) => b.submittedAt - a.submittedAt);
+    const saAudits = [...siteAudits.filter(a => a.type === "SA")].sort((a, b) => b.submittedAt - a.submittedAt);
+    const latestOA = oaAudits[0] || null;
+    const prevOA = oaAudits[1] || null;
+    const latestSA = saAudits[0] || null;
+    const oaScore = latestOA ? calcScore(latestOA) : null;
+    const saScore = latestSA ? calcScore(latestSA) : null;
+    const oaDelta = latestOA && prevOA ? oaScore.pct - calcScore(prevOA).pct : null;
+    // Section breakdown for latest OA
+    const oaSections = latestOA ? latestOA.sections.map(sec => ({ ...calcSectionScore(sec), name: sec.name, weight: sec.weight })) : [];
+    return { site, siteAudits, latestOA, latestSA, oaScore, saScore, oaDelta, oaSections };
+  });
+
+  const totalAudits = audits.length;
+  const sitesWithAudits = siteData.filter(s => s.siteAudits.length > 0).length;
+  const overallAvg = audits.length ? Math.round(audits.reduce((s, a) => s + calcScore(a).pct, 0) / audits.length) : 0;
+
   return (
     <div style={{ padding: 16 }}>
-      <h2 style={{ fontSize: 18, fontWeight: 700, color: "#0F172A", marginBottom: 4 }}>Site benchmarking</h2>
-      <p style={{ fontSize: 13, color: "#64748B", margin: "0 0 20px" }}>Latest audit scores across all sites</p>
-      {siteList.length === 0 ? <div style={{ textAlign: "center", padding: "48px 16px", color: "#94A3B8" }}>Submit audits from multiple sites to compare.</div>
-      : siteList.map((s, i) => (
-        <div key={s.site} style={{ background: "white", borderRadius: 12, border: "0.5px solid #E2E8F0", padding: 14, marginBottom: 10 }}>
-          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 10 }}>
-            <div>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
-                <span style={{ width: 22, height: 22, borderRadius: "50%", background: i === 0 ? "#FEF3C7" : "#F1F5F9", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: i === 0 ? "#92400E" : "#64748B" }}>#{i+1}</span>
-                <span style={{ fontWeight: 700, fontSize: 15, color: "#0F172A" }}>{s.site}</span>
-              </div>
-              <div style={{ fontSize: 12, color: "#64748B" }}>{s.count} audit{s.count !== 1 ? "s" : ""} · avg {s.avg}%</div>
-              {s.latestFailing > 0 && <div style={{ fontSize: 12, color: "#DC2626", fontWeight: 600, marginTop: 2 }}>⚠ {s.latestFailing} need improvement in latest</div>}
-            </div>
-            <div style={{ textAlign: "right" }}><div style={{ fontWeight: 700, fontSize: 24, color: gradeColor(s.latest), lineHeight: 1 }}>{s.latest}%</div><Delta d={s.delta} /></div>
+      {/* Header stats */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 20 }}>
+        {[
+          { label: "Total audits", val: totalAudits, color: "#003A6B" },
+          { label: "Overall avg", val: `${overallAvg}%`, color: gradeColor(overallAvg) },
+          { label: "Sites active", val: `${sitesWithAudits}/${SITES.length}`, color: "#003A6B" }
+        ].map(st => (
+          <div key={st.label} style={{ background: "white", borderRadius: 12, padding: "12px 10px", border: "0.5px solid #E2E8F0", textAlign: "center" }}>
+            <div style={{ fontWeight: 700, fontSize: 20, color: st.color, lineHeight: 1.1 }}>{st.val}</div>
+            <div style={{ fontSize: 11, color: "#64748B", marginTop: 3 }}>{st.label}</div>
           </div>
-          <div style={{ background: "#F1F5F9", borderRadius: 4, height: 8, overflow: "hidden" }}><div style={{ height: 8, borderRadius: 4, background: gradeColor(s.latest), width: `${s.latest}%`, transition: "width 0.5s" }} /></div>
-        </div>
-      ))}
-      <div style={{ background: "white", borderRadius: 12, border: "0.5px solid #E2E8F0", padding: 14, marginTop: 8 }}>
-        <div style={{ fontSize: 12, fontWeight: 700, color: "#64748B", marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.05em" }}>Score guide</div>
-        {[["80–100%","Good","#16A34A"],["60–79%","Acceptable","#D97706"],["40–59%","Needs Work","#EA580C"],["0–39%","Critical","#DC2626"]].map(([r,l,c]) => (
-          <div key={r} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}><div style={{ width: 10, height: 10, borderRadius: "50%", background: c, flexShrink: 0 }} /><span style={{ fontSize: 13, color: "#1E293B" }}><strong>{r}</strong> — {l}</span></div>
         ))}
       </div>
+
+      <div style={{ fontSize: 11, fontWeight: 700, color: "#94A3B8", letterSpacing: "0.07em", textTransform: "uppercase", marginBottom: 12 }}>All sites</div>
+
+      {siteData.map(({ site, siteAudits, latestOA, latestSA, oaScore, saScore, oaDelta, oaSections }) => {
+        const hasData = siteAudits.length > 0;
+        const isOpen = !!expanded[site];
+
+        return (
+          <div key={site} style={{ marginBottom: 10 }}>
+            {/* Site header card */}
+            <button onClick={() => hasData && toggle(site)} style={{
+              width: "100%", background: "white", border: "0.5px solid #E2E8F0",
+              borderRadius: isOpen ? "12px 12px 0 0" : 12, padding: "12px 14px",
+              textAlign: "left", cursor: hasData ? "pointer" : "default",
+              display: "flex", alignItems: "center", gap: 12,
+              borderBottom: isOpen ? "0.5px solid #F1F5F9" : "0.5px solid #E2E8F0"
+            }}>
+              {/* Site name */}
+              <div style={{ width: 40, height: 40, borderRadius: 10, background: hasData ? gradeColor(oaScore?.pct || saScore?.pct || 0) + "15" : "#F1F5F9", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <span style={{ fontWeight: 800, fontSize: 13, color: hasData ? gradeColor(oaScore?.pct || saScore?.pct || 0) : "#CBD5E1" }}>{site}</span>
+              </div>
+
+              <div style={{ flex: 1, minWidth: 0 }}>
+                {!hasData ? (
+                  <div style={{ fontSize: 13, color: "#CBD5E1" }}>No audits yet</div>
+                ) : (
+                  <>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                      {oaScore && (
+                        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                          <TypeBadge type="OA" />
+                          <span style={{ fontWeight: 700, fontSize: 14, color: gradeColor(oaScore.pct) }}>{oaScore.pct}%</span>
+                          {oaDelta !== null && <Delta d={oaDelta} />}
+                        </div>
+                      )}
+                      {saScore && (
+                        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                          <TypeBadge type="SA" />
+                          <span style={{ fontWeight: 700, fontSize: 14, color: gradeColor(saScore.pct) }}>{saScore.pct}%</span>
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ fontSize: 11, color: "#94A3B8" }}>{siteAudits.length} audit{siteAudits.length !== 1 ? "s" : ""} total · Latest: {fmt(siteAudits.sort((a,b) => b.submittedAt - a.submittedAt)[0]?.date)}</div>
+                  </>
+                )}
+              </div>
+
+              {hasData && <i className={`ti ${isOpen ? "ti-chevron-up" : "ti-chevron-down"}`} style={{ fontSize: 16, color: "#CBD5E1", flexShrink: 0 }} />}
+            </button>
+
+            {/* Expanded detail */}
+            {isOpen && hasData && (
+              <div style={{ background: "#FAFBFC", border: "0.5px solid #E2E8F0", borderTop: "none", borderRadius: "0 0 12px 12px", padding: 14 }}>
+
+                {/* OA Section breakdown */}
+                {latestOA && oaSections.length > 0 && (
+                  <div style={{ marginBottom: 14 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: "#1D4ED8", marginBottom: 8 }}>OA — {fmt(latestOA.date)} · Weighted score: {calcScore(latestOA).total}/4.00</div>
+                    {oaSections.map((sec, i) => (
+                      <div key={i} style={{ marginBottom: 8 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
+                          <span style={{ fontSize: 12, color: "#374151", fontWeight: 500 }}>{sec.name} <span style={{ color: "#94A3B8", fontWeight: 400 }}>({Math.round(sec.weight * 100)}%)</span></span>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: gradeColor(sec.pct) }}>{sec.avg}/4</span>
+                        </div>
+                        <div style={{ background: "#E2E8F0", borderRadius: 4, height: 7, overflow: "hidden" }}>
+                          <div style={{ height: 7, borderRadius: 4, background: gradeColor(sec.pct), width: `${sec.pct}%` }} />
+                        </div>
+                      </div>
+                    ))}
+                    {calcScore(latestOA).failing > 0 && (
+                      <div style={{ fontSize: 12, color: "#DC2626", fontWeight: 600, marginTop: 6 }}>
+                        ⚠ {calcScore(latestOA).failing} item{calcScore(latestOA).failing !== 1 ? "s" : ""} need improvement
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* SA summary */}
+                {latestSA && (
+                  <div style={{ marginBottom: 10 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: "#7C3AED", marginBottom: 8 }}>SA — {fmt(latestSA.date)}</div>
+                    {latestSA.sections.map((sec, i) => {
+                      const ss = calcSectionScore(sec);
+                      return (
+                        <div key={i} style={{ marginBottom: 8 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
+                            <span style={{ fontSize: 12, color: "#374151", fontWeight: 500 }}>{sec.name}</span>
+                            <span style={{ fontSize: 12, fontWeight: 700, color: gradeColor(ss.pct) }}>{ss.avg}/4</span>
+                          </div>
+                          <div style={{ background: "#E2E8F0", borderRadius: 4, height: 7, overflow: "hidden" }}>
+                            <div style={{ height: 7, borderRadius: 4, background: gradeColor(ss.pct), width: `${ss.pct}%` }} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Score guide */}
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 6 }}>
+                  {[["#16A34A","≥80% Good"],["#D97706","60–79% OK"],["#EA580C","40–59% Work"],["#DC2626","<40% Critical"]].map(([c,l]) => (
+                    <div key={l} style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                      <div style={{ width: 8, height: 8, borderRadius: "50%", background: c }} />
+                      <span style={{ fontSize: 10, color: "#64748B" }}>{l}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 };
