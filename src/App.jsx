@@ -286,12 +286,6 @@ const Dashboard = ({ audits, schedules, onNew, onView }) => {
           <div style={{ fontWeight: 600, fontSize: 14, color: "#7F1D1D" }}>{overdueCount} overdue audit{overdueCount !== 1 ? "s" : ""} — check the calendar</div>
         </div>
       )}
-      {totalFailing > 0 && (
-        <div style={{ background: "#FEF3C7", border: "0.5px solid #FDE68A", borderRadius: 10, padding: "10px 14px", marginBottom: 12, display: "flex", gap: 10 }}>
-          <i className="ti ti-alert-triangle" style={{ fontSize: 20, color: "#D97706", flexShrink: 0, marginTop: 1 }} />
-          <div style={{ fontWeight: 600, fontSize: 14, color: "#78350F" }}>{totalFailing} item{totalFailing !== 1 ? "s" : ""} scored 1 — Needs Improvement, require team discussion</div>
-        </div>
-      )}
       {upcomingCount > 0 && (
         <div style={{ background: "#EFF6FF", border: "0.5px solid #BFDBFE", borderRadius: 10, padding: "10px 14px", marginBottom: 18, display: "flex", alignItems: "center", gap: 10 }}>
           <i className="ti ti-calendar" style={{ fontSize: 20, color: "#0369A1" }} />
