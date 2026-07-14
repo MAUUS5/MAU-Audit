@@ -547,9 +547,9 @@ const NewAudit = ({ type, onDone, onCancel }) => {
         <option value="">Select your site...</option>
         {SITES.map(s => <option key={s} value={s}>{s}</option>)}
       </select>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 28 }}>
-        <div><label style={lbl}>Audit date</label><input type="date" value={audit.date} onChange={e => upd("date", e.target.value)} style={inp} /></div>
-        <div><label style={lbl}>Action items due</label><input type="date" value={audit.actionItemDueDate} onChange={e => upd("actionItemDueDate", e.target.value)} style={inp} /></div>
+      <div style={{ marginBottom: 28 }}>
+        <label style={lbl}>Audit date</label>
+        <input type="date" value={audit.date} onChange={e => upd("date", e.target.value)} style={inp} />
       </div>
       <button onClick={() => setStep(1)} disabled={!canGo} style={{ width: "100%", background: canGo ? "#003A6B" : "#CBD5E1", color: "white", border: "none", borderRadius: 12, padding: 15, fontSize: 16, fontWeight: 600, cursor: canGo ? "pointer" : "default" }}>Start scoring →</button>
     </div>
@@ -622,10 +622,12 @@ const NewAudit = ({ type, onDone, onCancel }) => {
                   <>
                     <input placeholder={item.score === 1 ? "Action item (required)..." : "Action item (optional)..."} value={item.actionItem}
                       onChange={e => updItem(secIdx, ii, "actionItem", e.target.value)}
-                      style={{ width: "100%", padding: "8px 10px", border: `1px solid ${missingAction ? "#DC2626" : "#E2E8F0"}`, borderRadius: 8, fontSize: 13, boxSizing: "border-box", fontFamily: "inherit", marginBottom: 8 }} />
-                    <input type="date" placeholder="Action item due date..." value={item.actionDue}
-                      onChange={e => updItem(secIdx, ii, "actionDue", e.target.value)}
-                      style={{ width: "100%", padding: "8px 10px", border: "1px solid #E2E8F0", borderRadius: 8, fontSize: 13, boxSizing: "border-box", fontFamily: "inherit" }} />
+                      style={{ width: "100%", padding: "8px 10px", border: `1px solid ${missingAction ? "#DC2626" : "#E2E8F0"}`, borderRadius: 8, fontSize: 13, boxSizing: "border-box", fontFamily: "inherit", marginBottom: item.score === 1 ? 8 : 0 }} />
+                    {item.score === 1 && (
+                      <input type="date" placeholder="Action item due date (required for score 1)..." value={item.actionDue}
+                        onChange={e => updItem(secIdx, ii, "actionDue", e.target.value)}
+                        style={{ width: "100%", padding: "8px 10px", border: "1px solid #E2E8F0", borderRadius: 8, fontSize: 13, boxSizing: "border-box", fontFamily: "inherit" }} />
+                    )}
                   </>
                 )}
               </div>
@@ -750,8 +752,8 @@ const Detail = ({ audit, prevAudit, onBack }) => {
           <div key={i} style={{ background: "white", borderRadius: 12, border: "0.5px solid #E2E8F0", padding: 14, marginBottom: 10 }}>
             <div style={{ fontSize: 10, fontWeight: 700, color: "#94A3B8", letterSpacing: "0.07em", textTransform: "uppercase", marginBottom: 4 }}>{item.sectionName}</div>
             <div style={{ fontSize: 14, color: "#1E293B", fontWeight: 600, marginBottom: 6 }}>{item.name}</div>
-            <div style={{ fontSize: 13, color: "#EA580C", marginBottom: 6 }}><i className="ti ti-arrow-right" style={{ fontSize: 12 }} /> {item.actionItem}</div>
-            {item.actionDue && <div style={{ fontSize: 12, color: "#64748B", marginBottom: 6 }}><i className="ti ti-calendar" style={{ fontSize: 12 }} /> Due: {fmt(item.actionDue)}</div>}
+            <div style={{ fontSize: 13, color: "#EA580C", marginBottom: item.actionDue ? 4 : 6 }}><i className="ti ti-arrow-right" style={{ fontSize: 12 }} /> {item.actionItem}</div>
+            {item.actionDue && <div style={{ fontSize: 12, color: "#DC2626", fontWeight: 600, marginBottom: 6 }}><i className="ti ti-calendar" style={{ fontSize: 12 }} /> Action due: {fmt(item.actionDue)}</div>}
             <Pill val={item.score} />
           </div>
         )))}
