@@ -1006,6 +1006,236 @@ const Team = ({ audits }) => {
   );
 };
 
+// ─────────────────────────── TRAINING ───────────────────────────
+
+const OA_PPO = {
+  title: "Operations Audit PPO",
+  type: "OA",
+  purpose: "Evaluate workplace operations performance and ensure compliance.",
+  inputs: "Operations Audit conducted using the audit template, operational data, and site observations.",
+  output: "Audit completed with findings documented, corrective actions assigned.",
+  sections: [
+    {
+      name: "Safety Performance",
+      who: "Auditor", timing: "During Audit",
+      why: "Verify that MAU is meeting safety, housekeeping and performance expectations while working on the production floor.",
+      steps: [
+        { label: "Accountabilities / KPIs", detail: "Refer to KPI on the M: Drive to break down the safety performance for the site." },
+        { label: "Maintain Performance Standards", detail: "Refer to the KPI to ensure targets are being met and maintained." },
+        { label: "Accountability", detail: "Confirm with SM that STD works are being completed." },
+        { label: "Housekeeping", detail: "Check while on SFT to ensure it is kept to standard." }
+      ]
+    },
+    {
+      name: "Process Discipline",
+      who: "Auditor", timing: "During Audit",
+      why: "Confirm MAU follows site procedures, permit requirements, PPE rules, and standard work to reduce risk around production equipment and plant operations.",
+      steps: [
+        { label: "Process Compliance", detail: "Verify that MAU process aligns with the process the customer set in place." },
+        { label: "Process Checks", detail: "Check SOPs to ensure the proper work is being performed." },
+        { label: "Action Registries", detail: "Check MAU action registers to ensure actions are being taken and closed." },
+        { label: "Connected Checking", detail: "Check in with the customer to see if there are any concerns." },
+        { label: "Deadlines", detail: "Ensure all deadlines are met with MAU and/or the customer." }
+      ]
+    },
+    {
+      name: "Process Improvement",
+      who: "Auditor", timing: "During Audit on the floor",
+      why: "Identify improvement opportunities before they become safety, quality, downtime, or compliance issues, and support proactive corrective actions.",
+      steps: [
+        { label: "4 SPS", detail: "Audit the most previous 4SPS to verify that each step is completed correctly." },
+        { label: "Process Improvements", detail: "Verify that process improvements are being made and what processes have been improved." },
+        { label: "Proactive Improvements", detail: "Check KPIs and action registers to ensure proactive measures are taking place." }
+      ]
+    },
+    {
+      name: "Relationships",
+      who: "Auditor", timing: "During Audit on the floor",
+      why: "Ensure that MAU communicates effectively with Michelin contacts, production teams, and site leadership.",
+      steps: [
+        { label: "Customer Engagement", detail: "During SFT check to see how customer engagement amongst MAU leadership." },
+        { label: "Site Growth", detail: "Check KPIs to see if site progression aligns." },
+        { label: "Associate Engagement", detail: "During SFT check to see if employee/manager engagement aligns." },
+        { label: "FTR Relationships", detail: "Converse with and observe FTRs." }
+      ]
+    },
+    {
+      name: "Records",
+      who: "Auditor", timing: "During Audit in the Operations office",
+      why: "Maintain accurate proof of training, work hours, expenses, meetings, and action closure to support traceability, accountability, and audit readiness.",
+      steps: [
+        { label: "Training Records", detail: "Check to make sure the proper training records are up to date and correct." },
+        { label: "Hours Tracker", detail: "Check on the M Drive to see if the tracker is up to date." },
+        { label: "Expense Tracker", detail: "Check on M Drive if the expense tracker is being updated monthly." },
+        { label: "KPI Meeting", detail: "Check previous KPIs to see what progression is being made month after month." }
+      ]
+    }
+  ]
+};
+
+const SA_PPO = {
+  title: "Safety Audit PPO",
+  type: "SA",
+  purpose: "Evaluate workplace safety performance and ensure compliance.",
+  inputs: "Safety Audit conducted using the audit template, safety data, and site observations.",
+  output: "Audit completed with findings documented, corrective actions assigned.",
+  sections: [
+    {
+      name: "Employee Engagement",
+      who: "Auditor", timing: "During Audit on the floor",
+      why: "Ensure associates know evacuation points, understand alarm types, follow spill response procedures, and can access the SDS book when needed.",
+      steps: [
+        { label: "Evacuation gathering point", detail: "Associate knows exterior and interior meeting points." },
+        { label: "Fire/weather alarm differences", detail: "Associate can explain the difference — including the length of the alarms." },
+        { label: "Spill control protocol", detail: "Associate knows where to find felt to control the spill and who needs to be notified." },
+        { label: "How to access a SDS", detail: "Associate knows where the SDS book is located." }
+      ]
+    },
+    {
+      name: "Injury / Illness",
+      who: "Auditor", timing: "During Audit on the floor and Operations Office",
+      why: "Ensure the process is still updated and to try to prevent the same injury from happening again.",
+      steps: [
+        { label: "Review last injury/illness", detail: "Review 4 Step from the incident to verify the correct actions were given to address the root cause." },
+        { label: "Follow the Flow Chart?", detail: "Review last incident — did we follow the Incident Response Flowchart?" },
+        { label: "Follow all protocols?", detail: "Review last incident against the Incident Investigation Checklist." },
+        { label: "Deadlines met?", detail: "Check ICI to see if all actions from last injury are completed." }
+      ]
+    },
+    {
+      name: "PPE",
+      who: "Auditor", timing: "During Audit on the floor",
+      why: "Ensure correct PPE is being ordered and ensure associates are using the correct PPE.",
+      steps: [
+        { label: "PPE Audits", detail: "Verify PPE audits are being conducted regularly." },
+        { label: "PPE Expenses being tracked", detail: "If being tracked, check the M Drive to view the PPE expense tracker." },
+        { label: "PPE Usage on the floor", detail: "Associates are wearing the correct PPE on the production floor." },
+        { label: "PPE consumption being tracked", detail: "Review weekly inventory tracker." }
+      ]
+    },
+    {
+      name: "Hazard Prevention",
+      who: "Auditor", timing: "During Audit",
+      why: "Ensure safety procedures in place are effective, still pertain to the job being performed, and correct PPE requirements are up to date and effective.",
+      steps: [
+        { label: "JSA completed", detail: "Check M Drive for updated JSA for each position." },
+        { label: "JSA effective", detail: "Pull a random JSA and go to the floor to see if it is effective." },
+        { label: "PPE effectiveness reviewed", detail: "While doing your Gemba, observe associates wearing PPE." },
+        { label: "Gemba walks being performed", detail: "Check observations and findings log." }
+      ]
+    },
+    {
+      name: "Incident & Records Review",
+      who: "Auditor", timing: "During Audit — Login to ICI Live",
+      why: "Ensure complete and accurate training records and protocols are being kept up to date, and ensure observations are occurring so any issues are caught and corrected before they become a problem.",
+      steps: [
+        { label: "OSHA training records", detail: "Review OSHA training records for completeness." },
+        { label: "BBS Observations up to date", detail: "Check observation tracker." },
+        { label: "Training records for last 5 associates hired", detail: "Check for onboarding documents, validations, drug screen, HV (if required)." },
+        { label: "Review last 3 incidents", detail: "Login into ICI and check that all sections are completed on the incident investigation checklist." }
+      ]
+    }
+  ]
+};
+
+const Training = () => {
+  const [openDoc, setOpenDoc] = useState(null);
+  const [openSections, setOpenSections] = useState({});
+
+  const toggleSection = (key) => setOpenSections(p => ({ ...p, [key]: !p[key] }));
+
+  const PPO = ({ doc }) => (
+    <div style={{ marginBottom: 16 }}>
+      {/* Doc header */}
+      <button onClick={() => setOpenDoc(openDoc === doc.type ? null : doc.type)} style={{
+        width: "100%", background: "white", border: "0.5px solid #E2E8F0",
+        borderRadius: openDoc === doc.type ? "12px 12px 0 0" : 12,
+        borderBottom: openDoc === doc.type ? "0.5px solid #F1F5F9" : "0.5px solid #E2E8F0",
+        padding: "14px 16px", textAlign: "left", cursor: "pointer",
+        display: "flex", alignItems: "center", gap: 14
+      }}>
+        <div style={{ width: 44, height: 44, borderRadius: 10, background: doc.type === "OA" ? "#DBEAFE" : "#EDE9FE", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <i className={`ti ${doc.type === "OA" ? "ti-clipboard-list" : "ti-shield-check"}`} style={{ fontSize: 22, color: doc.type === "OA" ? "#1D4ED8" : "#7C3AED" }} />
+        </div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontWeight: 700, fontSize: 15, color: "#0F172A", marginBottom: 2 }}>{doc.title}</div>
+          <div style={{ fontSize: 12, color: "#64748B" }}>{doc.sections.length} sections · Tap to read</div>
+        </div>
+        <TypeBadge type={doc.type} />
+        <i className={`ti ${openDoc === doc.type ? "ti-chevron-up" : "ti-chevron-down"}`} style={{ fontSize: 16, color: "#CBD5E1" }} />
+      </button>
+
+      {openDoc === doc.type && (
+        <div style={{ background: "#FAFBFC", border: "0.5px solid #E2E8F0", borderTop: "none", borderRadius: "0 0 12px 12px" }}>
+          {/* Purpose & Inputs */}
+          <div style={{ padding: "14px 16px", borderBottom: "0.5px solid #F1F5F9" }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 6 }}>Purpose</div>
+            <div style={{ fontSize: 13, color: "#374151", lineHeight: 1.5, marginBottom: 10 }}>{doc.purpose}</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 6 }}>Inputs</div>
+            <div style={{ fontSize: 13, color: "#374151", lineHeight: 1.5 }}>{doc.inputs}</div>
+          </div>
+
+          {/* Sections */}
+          {doc.sections.map((sec, si) => {
+            const key = `${doc.type}-${si}`;
+            const isOpen = !!openSections[key];
+            return (
+              <div key={si} style={{ borderBottom: si < doc.sections.length - 1 ? "0.5px solid #F1F5F9" : "none" }}>
+                <button onClick={() => toggleSection(key)} style={{
+                  width: "100%", background: "none", border: "none", padding: "12px 16px",
+                  textAlign: "left", cursor: "pointer", display: "flex", alignItems: "center", gap: 10
+                }}>
+                  <div style={{ width: 6, height: 6, borderRadius: "50%", background: doc.type === "OA" ? "#1D4ED8" : "#7C3AED", flexShrink: 0 }} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 600, fontSize: 14, color: "#1E293B" }}>{sec.name}</div>
+                    <div style={{ fontSize: 11, color: "#94A3B8" }}>{sec.who} · {sec.timing}</div>
+                  </div>
+                  <i className={`ti ${isOpen ? "ti-chevron-up" : "ti-chevron-down"}`} style={{ fontSize: 14, color: "#CBD5E1", flexShrink: 0 }} />
+                </button>
+
+                {isOpen && (
+                  <div style={{ padding: "0 16px 14px 16px" }}>
+                    <div style={{ background: doc.type === "OA" ? "#EFF6FF" : "#F5F3FF", borderRadius: 8, padding: "8px 12px", marginBottom: 12 }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: doc.type === "OA" ? "#1D4ED8" : "#7C3AED", marginBottom: 3 }}>WHY</div>
+                      <div style={{ fontSize: 12, color: "#374151", lineHeight: 1.5 }}>{sec.why}</div>
+                    </div>
+                    {sec.steps.map((step, i) => (
+                      <div key={i} style={{ display: "flex", gap: 10, marginBottom: 10 }}>
+                        <div style={{ width: 22, height: 22, borderRadius: "50%", background: doc.type === "OA" ? "#DBEAFE" : "#EDE9FE", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>
+                          <span style={{ fontSize: 10, fontWeight: 700, color: doc.type === "OA" ? "#1D4ED8" : "#7C3AED" }}>{i + 1}</span>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: "#1E293B", marginBottom: 2 }}>{step.label}</div>
+                          <div style={{ fontSize: 12, color: "#64748B", lineHeight: 1.4 }}>{step.detail}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+
+          {/* Output */}
+          <div style={{ padding: "12px 16px", background: "#F0FDF4", borderRadius: "0 0 12px 12px" }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "#16A34A", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 4 }}>Output</div>
+            <div style={{ fontSize: 13, color: "#374151" }}>{doc.output}</div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  return (
+    <div style={{ padding: 16 }}>
+      <h2 style={{ fontSize: 18, fontWeight: 700, color: "#0F172A", marginBottom: 4 }}>Training</h2>
+      <p style={{ fontSize: 13, color: "#64748B", margin: "0 0 20px" }}>Process & Procedure documents for conducting site audits</p>
+      <PPO doc={OA_PPO} />
+      <PPO doc={SA_PPO} />
+    </div>
+  );
+};
+
 // ─────────────────────────── APP SHELL ───────────────────────────
 
 const TABS = [
@@ -1013,7 +1243,8 @@ const TABS = [
   { id: "calendar",  label: "Calendar", icon: "ti-calendar" },
   { id: "history",   label: "History",  icon: "ti-history" },
   { id: "benchmark", label: "Compare",  icon: "ti-chart-bar" },
-  { id: "team",      label: "Team",     icon: "ti-users" }
+  { id: "team",      label: "Team",     icon: "ti-users" },
+  { id: "training",  label: "Training", icon: "ti-book" }
 ];
 
 export default function App() {
@@ -1077,6 +1308,7 @@ export default function App() {
         {tab === "history"   && <History audits={audits} onView={handleView} />}
         {tab === "benchmark" && <Benchmark audits={audits} />}
         {tab === "team"      && <Team audits={audits} />}
+        {tab === "training"  && <Training />}
         {tab === "detail"    && detailAudit && <Detail audit={detailAudit} prevAudit={prevAudit(detailAudit)} onBack={handleBack} />}
       </div>
       {!inWizard && (
