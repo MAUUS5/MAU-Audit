@@ -1289,7 +1289,6 @@ const Training = () => {
 const TABS = [
   { id: "dashboard", label: "Home",     icon: "ti-home" },
   { id: "calendar",  label: "Calendar", icon: "ti-calendar" },
-  { id: "history",   label: "History",  icon: "ti-history" },
   { id: "benchmark", label: "Compare",  icon: "ti-chart-bar" },
   { id: "team",      label: "Team",     icon: "ti-users" },
   { id: "training",  label: "Training", icon: "ti-book" }
