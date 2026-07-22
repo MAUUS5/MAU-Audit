@@ -250,8 +250,11 @@ const SiteFolders = ({ audits, onView, prevFor }) => {
 
 // ─────────────────────────── DASHBOARD ───────────────────────────
 
-const Dashboard = ({ audits, schedules, onNew, onView }) => {
+const Dashboard = ({ audits, schedules, onNew, onView, onResumeDraft }) => {
   const today = new Date();
+  // Check for saved draft
+  const draft = (() => { try { return JSON.parse(localStorage.getItem(DRAFT_KEY)); } catch { return null; } })();
+  const hasDraft = !!draft?.audit?.type;
   // Only count audits that have a site assigned
   const siteAudits = audits.filter(a => a.site && SITES.includes(a.site));
   const avg = siteAudits.length ? Math.round(siteAudits.reduce((s, a) => s + calcScore(a).pct, 0) / siteAudits.length) : 0;
@@ -266,6 +269,17 @@ const Dashboard = ({ audits, schedules, onNew, onView }) => {
 
   return (
     <div style={{ padding: 16 }}>
+      {/* Resume draft banner */}
+      {hasDraft && (
+        <div style={{ background: "#FFF7ED", border: "0.5px solid #FED7AA", borderRadius: 10, padding: "10px 14px", marginBottom: 16, display: "flex", alignItems: "center", gap: 10 }}>
+          <i className="ti ti-device-floppy" style={{ fontSize: 20, color: "#EA580C", flexShrink: 0 }} />
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 600, fontSize: 14, color: "#7C2D12" }}>Unsaved audit draft</div>
+            <div style={{ fontSize: 12, color: "#9A3412" }}>{draft.audit.type} · {draft.audit.site || "No site selected"} · Auto-saved</div>
+          </div>
+          <button onClick={() => onResumeDraft(draft.audit.type)} style={{ background: "#EA580C", color: "white", border: "none", borderRadius: 8, padding: "6px 12px", fontSize: 13, fontWeight: 600, cursor: "pointer", flexShrink: 0 }}>Resume</button>
+        </div>
+      )}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 18 }}>
         {[
           { label: "Audits", val: siteAudits.length, icon: "ti-clipboard-check", color: "#003A6B" },
@@ -514,9 +528,18 @@ const CalendarView = ({ audits, schedules, onAddSchedule, onDeleteSchedule }) =>
 
 // ─────────────────────────── NEW AUDIT WIZARD ───────────────────────────
 
+const DRAFT_KEY = "mau-audit-draft";
+
 const NewAudit = ({ type, onDone, onCancel }) => {
   const [step, setStep] = useState(0);
-  const [audit, setAudit] = useState(() => createEmpty(type));
+  const [audit, setAudit] = useState(() => {
+    // Restore draft if same type
+    try {
+      const saved = JSON.parse(localStorage.getItem(DRAFT_KEY));
+      if (saved?.audit?.type === type) return saved.audit;
+    } catch {}
+    return createEmpty(type);
+  });
   const [expandedCriteria, setExpandedCriteria] = useState(null);
   const tmpl = TEMPLATES[type];
   const numSec = audit.sections.length;
@@ -530,9 +553,24 @@ const NewAudit = ({ type, onDone, onCancel }) => {
   const inp = { width: "100%", padding: "11px 12px", border: "1px solid #D1D5DB", borderRadius: 8, fontSize: 15, boxSizing: "border-box", fontFamily: "inherit" };
   const lbl = { display: "block", fontSize: 13, fontWeight: 500, color: "#374151", marginBottom: 6 };
 
+  // Auto-save draft on every change
+  useEffect(() => {
+    try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ audit, savedAt: Date.now() })); } catch {}
+  }, [audit]);
+
+  const handleCancel = () => {
+    localStorage.removeItem(DRAFT_KEY);
+    onCancel();
+  };
+
+  const handleSubmit = () => {
+    localStorage.removeItem(DRAFT_KEY);
+    onDone({ ...audit, submittedAt: Date.now() });
+  };
+
   if (step === 0) return (
     <div style={{ padding: 16 }}>
-      <button onClick={onCancel} style={{ background: "none", border: "none", color: "#64748B", cursor: "pointer", padding: 0, marginBottom: 20, display: "flex", alignItems: "center", gap: 4, fontSize: 14 }}><i className="ti ti-arrow-left" /> Cancel</button>
+      <button onClick={handleCancel} style={{ background: "none", border: "none", color: "#64748B", cursor: "pointer", padding: 0, marginBottom: 20, display: "flex", alignItems: "center", gap: 4, fontSize: 14 }}><i className="ti ti-arrow-left" /> Cancel</button>
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}><TypeBadge type={type} /><h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: "#0F172A" }}>{tmpl.label}</h2></div>
       <p style={{ color: "#64748B", fontSize: 14, margin: "0 0 24px" }}>Enter audit details to begin scoring</p>
       <label style={lbl}>Site being audited *</label>
@@ -678,7 +716,7 @@ const NewAudit = ({ type, onDone, onCancel }) => {
             </div>
           );
         })}
-        <button onClick={() => onDone({ ...audit, submittedAt: Date.now() })} style={{ width: "100%", background: "#003A6B", color: "white", border: "none", borderRadius: 12, padding: 16, fontSize: 16, fontWeight: 700, cursor: "pointer", marginTop: 10 }}>Submit audit ✓</button>
+        <button onClick={handleSubmit} style={{ width: "100%", background: "#003A6B", color: "white", border: "none", borderRadius: 12, padding: 16, fontSize: 16, fontWeight: 700, cursor: "pointer", marginTop: 10 }}>Submit audit ✓</button>
       </div>
     );
   }
@@ -777,7 +815,17 @@ const History = ({ audits, onView }) => {
 
   return (
     <div style={{ padding: 16 }}>
-      {/* Filter row + view toggle */}
+      {/* Resume draft banner */}
+      {hasDraft && (
+        <div style={{ background: "#FFF7ED", border: "0.5px solid #FED7AA", borderRadius: 10, padding: "10px 14px", marginBottom: 16, display: "flex", alignItems: "center", gap: 10 }}>
+          <i className="ti ti-device-floppy" style={{ fontSize: 20, color: "#EA580C", flexShrink: 0 }} />
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 600, fontSize: 14, color: "#7C2D12" }}>Unsaved audit draft</div>
+            <div style={{ fontSize: 12, color: "#9A3412" }}>{draft.audit.type} · {draft.audit.site || "No site selected"} · Auto-saved</div>
+          </div>
+          <button onClick={() => onResumeDraft(draft.audit.type)} style={{ background: "#EA580C", color: "white", border: "none", borderRadius: 8, padding: "6px 12px", fontSize: 13, fontWeight: 600, cursor: "pointer", flexShrink: 0 }}>Resume</button>
+        </div>
+      )}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
         <div style={{ display: "flex", gap: 8 }}>
           {[["all","All"],["OA","OA"],["SA","SA"]].map(([v, l]) => (
@@ -1261,6 +1309,7 @@ export default function App() {
   }, []);
 
   const handleNew = (type) => { setNewType(type); setTab("new"); };
+  const handleResumeDraft = (type) => { setNewType(type); setTab("new"); };
   const handleDone = async (audit) => {
     setSaving(true);
     await saveAudit(audit);
@@ -1302,7 +1351,7 @@ export default function App() {
       )}
       {saving && <div style={{ background: "#003A6B", color: "white", fontSize: 12, textAlign: "center", padding: 6 }}>Saving...</div>}
       <div style={{ paddingBottom: inWizard ? 0 : 68 }}>
-        {tab === "dashboard" && <Dashboard audits={audits} schedules={schedules} onNew={handleNew} onView={handleView} />}
+        {tab === "dashboard" && <Dashboard audits={audits} schedules={schedules} onNew={handleNew} onView={handleView} onResumeDraft={handleResumeDraft} />}
         {tab === "calendar"  && <CalendarView audits={audits} schedules={schedules} onAddSchedule={handleAddSchedule} onDeleteSchedule={handleDeleteSchedule} />}
         {tab === "new"       && newType && <NewAudit type={newType} onDone={handleDone} onCancel={() => { setNewType(null); setTab("dashboard"); }} />}
         {tab === "history"   && <History audits={audits} onView={handleView} />}
