@@ -428,21 +428,21 @@ const CalendarView = ({ audits, schedules, onAddSchedule, onDeleteSchedule }) =>
       return day;
     };
 
-    const newSchedules = pickedSites.map((site, i) => {
+    const newSchedules = pickedSites.flatMap((site, i) => {
       const auditor = shuffledAuditors[i % shuffledAuditors.length];
       const day = getRandomWeekday();
       const dueDate = `${yr}-${String(mo + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-      return {
-        id: `gen-${Date.now()}-${i}`,
+      return ["OA", "SA"].map(type => ({
+        id: `gen-${Date.now()}-${i}-${type}`,
         site,
-        type: "OA",
+        type,
         assignedTo: auditor.name,
         auditorEmail: auditor.email,
         dueDate,
         frequency: "monthly",
         notes: `Auto-generated — ${monthLabel}`,
         createdAt: Date.now()
-      };
+      }));
     });
 
     newSchedules.forEach(s => onAddSchedule(s));
