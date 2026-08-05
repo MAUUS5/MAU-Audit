@@ -571,16 +571,46 @@ const CalendarView = ({ audits, schedules, onAddSchedule, onDeleteSchedule }) =>
         <div style={{ textAlign: "center", color: "#94A3B8", fontSize: 13, marginBottom: 14, padding: "12px 0" }}>Nothing scheduled for {monthName} {selectedDay}</div>
       )}
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-        <button onClick={() => setShowForm(!showForm)} style={{ background: showForm ? "#64748B" : "#003A6B", color: "white", border: "none", borderRadius: 12, padding: 14, fontSize: 14, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-          <i className={`ti ${showForm ? "ti-x" : "ti-calendar-plus"}`} style={{ fontSize: 18 }} />
-          {showForm ? "Cancel" : "Schedule audit"}
-        </button>
-        <button onClick={generateMonthlySchedule} style={{ background: "#7C3AED", color: "white", border: "none", borderRadius: 12, padding: 14, fontSize: 14, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-          <i className="ti ti-calendar-stats" style={{ fontSize: 18 }} />
-          Auto-schedule
-        </button>
-      </div>
+      {/* Auto-schedule button — locked once next month has schedules */}
+      {(() => {
+        const now = new Date();
+        const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+        const yr = nextMonth.getFullYear();
+        const mo = nextMonth.getMonth();
+        const monthPrefix = `${yr}-${String(mo + 1).padStart(2, "0")}`;
+        const nextMonthLabel = nextMonth.toLocaleString("en-US", { month: "long", year: "numeric" });
+        const isLocked = schedules.some(s => s.dueDate?.startsWith(monthPrefix));
+
+        return (
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <button onClick={() => setShowForm(!showForm)} style={{ background: showForm ? "#64748B" : "#003A6B", color: "white", border: "none", borderRadius: 12, padding: 14, fontSize: 14, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+              <i className={`ti ${showForm ? "ti-x" : "ti-calendar-plus"}`} style={{ fontSize: 18 }} />
+              {showForm ? "Cancel" : "Schedule audit"}
+            </button>
+
+            {isLocked ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <div style={{ background: "#F1F5F9", border: "0.5px solid #E2E8F0", borderRadius: 12, padding: "10px 12px", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                  <i className="ti ti-lock" style={{ fontSize: 16, color: "#64748B" }} />
+                  <span style={{ fontSize: 13, fontWeight: 600, color: "#64748B" }}>{nextMonthLabel} locked</span>
+                </div>
+                <button onClick={() => {
+                  if (window.confirm(`Regenerate the schedule for ${nextMonthLabel}? This will replace the existing audits.`)) {
+                    generateMonthlySchedule();
+                  }
+                }} style={{ background: "none", border: "none", color: "#94A3B8", fontSize: 11, cursor: "pointer", textDecoration: "underline", padding: 0, textAlign: "center" }}>
+                  Unlock &amp; regenerate
+                </button>
+              </div>
+            ) : (
+              <button onClick={generateMonthlySchedule} style={{ background: "#7C3AED", color: "white", border: "none", borderRadius: 12, padding: 14, fontSize: 14, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                <i className="ti ti-calendar-stats" style={{ fontSize: 18 }} />
+                Auto-schedule
+              </button>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Generated schedules result */}
       {generatedSchedules.length > 0 && (
