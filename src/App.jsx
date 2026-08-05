@@ -374,7 +374,65 @@ const CalendarView = ({ audits, schedules, onAddSchedule, onDeleteSchedule }) =>
 
   const upcomingSorted = [...schedules].filter(s => new Date(s.dueDate + "T12:00:00") >= new Date(today.getFullYear(), today.getMonth(), today.getDate())).sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
 
-  const handleSave = () => {
+  const generateMonthlySchedule = () => {
+    const now = new Date();
+    const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    const yr = nextMonth.getFullYear();
+    const mo = nextMonth.getMonth();
+    const daysInNextMonth = new Date(yr, mo + 1, 0).getDate();
+
+    // Get unique auditors from existing audits (name + site pairs)
+    const auditorMap = {};
+    audits.forEach(a => {
+      if (a.auditorName && a.auditorSite) auditorMap[a.auditorSite] = a.auditorName;
+    });
+
+    // Shuffle sites so assignment is random
+    const shuffledSites = [...SITES].sort(() => Math.random() - 0.5);
+    const auditorSites = Object.keys(auditorMap);
+
+    const newSchedules = SITES.map((site, i) => {
+      // Pick a random weekday in next month
+      let day;
+      let attempts = 0;
+      do {
+        day = Math.floor(Math.random() * daysInNextMonth) + 1;
+        const dow = new Date(yr, mo, day).getDay();
+        if (dow !== 0 && dow !== 6) break;
+        attempts++;
+      } while (attempts < 20);
+
+      const dueDate = `${yr}-${String(mo + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+
+      // Assign auditor from a different site (rotate through available auditors)
+      let assignedTo = "";
+      if (auditorSites.length > 0) {
+        // Pick an auditor not from this site
+        const others = auditorSites.filter(s => s !== site);
+        if (others.length > 0) {
+          const pick = others[i % others.length];
+          assignedTo = auditorMap[pick];
+        } else {
+          assignedTo = auditorMap[auditorSites[0]];
+        }
+      }
+
+      return {
+        id: `gen-${Date.now()}-${i}`,
+        site,
+        type: "OA",
+        assignedTo,
+        dueDate,
+        frequency: "monthly",
+        notes: `Auto-generated — ${nextMonth.toLocaleString("en-US", { month: "long", year: "numeric" })}`,
+        createdAt: Date.now()
+      };
+    });
+
+    newSchedules.forEach(s => onAddSchedule(s));
+    // Jump calendar to next month
+    setViewDate(nextMonth);
+  };
     if (!form.site || !form.dueDate) return;
     onAddSchedule({ ...form, id: Date.now().toString(), createdAt: Date.now() });
     setForm({ site: "", type: "OA", assignedTo: "", dueDate: "", frequency: "monthly", notes: "" });
@@ -488,10 +546,16 @@ const CalendarView = ({ audits, schedules, onAddSchedule, onDeleteSchedule }) =>
         <div style={{ textAlign: "center", color: "#94A3B8", fontSize: 13, marginBottom: 14, padding: "12px 0" }}>Nothing scheduled for {monthName} {selectedDay}</div>
       )}
 
-      <button onClick={() => setShowForm(!showForm)} style={{ width: "100%", background: showForm ? "#64748B" : "#003A6B", color: "white", border: "none", borderRadius: 12, padding: 14, fontSize: 15, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-        <i className={`ti ${showForm ? "ti-x" : "ti-calendar-plus"}`} style={{ fontSize: 18 }} />
-        {showForm ? "Cancel" : "Schedule an audit"}
-      </button>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <button onClick={() => setShowForm(!showForm)} style={{ background: showForm ? "#64748B" : "#003A6B", color: "white", border: "none", borderRadius: 12, padding: 14, fontSize: 14, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+          <i className={`ti ${showForm ? "ti-x" : "ti-calendar-plus"}`} style={{ fontSize: 18 }} />
+          {showForm ? "Cancel" : "Schedule audit"}
+        </button>
+        <button onClick={generateMonthlySchedule} style={{ background: "#7C3AED", color: "white", border: "none", borderRadius: 12, padding: 14, fontSize: 14, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+          <i className="ti ti-calendar-stats" style={{ fontSize: 18 }} />
+          Auto-schedule
+        </button>
+      </div>
 
       {showForm && (
         <div style={{ background: "white", borderRadius: 12, border: "0.5px solid #E2E8F0", padding: 16, marginTop: 12 }}>
@@ -565,7 +629,19 @@ const NewAudit = ({ type, onDone, onCancel }) => {
 
   const handleSubmit = () => {
     localStorage.removeItem(DRAFT_KEY);
-    onDone({ ...audit, submittedAt: Date.now() });
+    // Apply the single due date to all items scored 1
+    const finalAudit = {
+      ...audit,
+      submittedAt: Date.now(),
+      sections: audit.sections.map(sec => ({
+        ...sec,
+        items: sec.items.map(item => ({
+          ...item,
+          actionDue: item.score === 1 ? audit.actionItemDueDate : item.actionDue
+        }))
+      }))
+    };
+    onDone(finalAudit);
   };
 
   if (step === 0) return (
@@ -660,12 +736,7 @@ const NewAudit = ({ type, onDone, onCancel }) => {
                   <>
                     <input placeholder={item.score === 1 ? "Action item (required)..." : "Action item (optional)..."} value={item.actionItem}
                       onChange={e => updItem(secIdx, ii, "actionItem", e.target.value)}
-                      style={{ width: "100%", padding: "8px 10px", border: `1px solid ${missingAction ? "#DC2626" : "#E2E8F0"}`, borderRadius: 8, fontSize: 13, boxSizing: "border-box", fontFamily: "inherit", marginBottom: item.score === 1 ? 8 : 0 }} />
-                    {item.score === 1 && (
-                      <input type="date" placeholder="Action item due date (required for score 1)..." value={item.actionDue}
-                        onChange={e => updItem(secIdx, ii, "actionDue", e.target.value)}
-                        style={{ width: "100%", padding: "8px 10px", border: "1px solid #E2E8F0", borderRadius: 8, fontSize: 13, boxSizing: "border-box", fontFamily: "inherit" }} />
-                    )}
+                      style={{ width: "100%", padding: "8px 10px", border: `1px solid ${missingAction ? "#DC2626" : "#E2E8F0"}`, borderRadius: 8, fontSize: 13, boxSizing: "border-box", fontFamily: "inherit" }} />
                   </>
                 )}
               </div>
@@ -716,6 +787,18 @@ const NewAudit = ({ type, onDone, onCancel }) => {
             </div>
           );
         })}
+        {fs.failing > 0 && (
+          <div style={{ background: "white", borderRadius: 12, border: "0.5px solid #E2E8F0", padding: 14, marginTop: 8 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "#DC2626", marginBottom: 8 }}>
+              <i className="ti ti-calendar-due" style={{ marginRight: 6 }} />
+              Action items due date ({fs.failing} item{fs.failing !== 1 ? "s" : ""} scored 1)
+            </div>
+            <div style={{ fontSize: 12, color: "#64748B", marginBottom: 8 }}>Set a due date for all action items requiring improvement:</div>
+            <input type="date" value={audit.actionItemDueDate}
+              onChange={e => upd("actionItemDueDate", e.target.value)}
+              style={{ width: "100%", padding: "10px 12px", border: "1.5px solid #DC2626", borderRadius: 8, fontSize: 15, boxSizing: "border-box", fontFamily: "inherit" }} />
+          </div>
+        )}
         <button onClick={handleSubmit} style={{ width: "100%", background: "#003A6B", color: "white", border: "none", borderRadius: 12, padding: 16, fontSize: 16, fontWeight: 700, cursor: "pointer", marginTop: 10 }}>Submit audit ✓</button>
       </div>
     );
