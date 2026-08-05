@@ -429,10 +429,15 @@ const CalendarView = ({ audits, schedules, onAddSchedule, onDeleteSchedule }) =>
     };
 
     const newSchedules = pickedSites.flatMap((site, i) => {
-      const auditor = shuffledAuditors[i % shuffledAuditors.length];
       const day = getRandomWeekday();
       const dueDate = `${yr}-${String(mo + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-      return ["OA", "SA"].map(type => ({
+      // Pick two different auditors for OA and SA
+      const auditorOA = shuffledAuditors[(i * 2) % shuffledAuditors.length];
+      const auditorSA = shuffledAuditors[(i * 2 + 1) % shuffledAuditors.length];
+      return [
+        { type: "OA", auditor: auditorOA },
+        { type: "SA", auditor: auditorSA }
+      ].map(({ type, auditor }) => ({
         id: `gen-${Date.now()}-${i}-${type}`,
         site,
         type,
