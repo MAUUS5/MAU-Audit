@@ -58,6 +58,22 @@ const SA_TEMPLATE = {
 const TEMPLATES = { OA: OA_TEMPLATE, SA: SA_TEMPLATE };
 const SITES = ["US1","US2","US5","US7","US8","US10","Prime","Tweel"];
 
+const AUDITORS = [
+  { name: "Brandon Waller",     email: "brandon.waller@mau.com" },
+  { name: "Amanda Boger",       email: "amanda.boger@mau.com" },
+  { name: "Ann Hays",           email: "ann.hays@mau.com" },
+  { name: "Cierra Rodriguez",   email: "cierra.rodriguez@mau.com" },
+  { name: "Danielle Thompson",  email: "danielle.thompson@mau.com" },
+  { name: "Ivan Page",          email: "ivan.page@mau.com" },
+  { name: "Jeremy Patterson",   email: "jeremy.patterson@mau.com" },
+  { name: "Joshua Truesdale",   email: "joshua.truesdale@mau.com" },
+  { name: "Lei Goodman",        email: "lei.goodman@mau.com" },
+  { name: "Rozelon Bell",       email: "rozelon.bell@mau.com" },
+  { name: "Steven Johnson",     email: "steven.johnson@mau.com" },
+  { name: "Terran Young",       email: "terran.young@mau.com" },
+  { name: "Ty Wentworth",       email: "ty.wentworth@mau.com" }
+];
+
 // ─────────────────────────── UTILITIES ───────────────────────────
 
 const getScoreInfo = (v) => SCORES.find(s => s.val === v) || { color: "#94A3B8", bg: "#F1F5F9", label: "Not scored", text: "#475569" };
@@ -341,7 +357,14 @@ const CalendarView = ({ audits, schedules, onAddSchedule, onDeleteSchedule }) =>
   const [viewDate, setViewDate] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
   const [selectedDay, setSelectedDay] = useState(today.getDate());
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ site: "", type: "OA", assignedTo: "", dueDate: "", frequency: "monthly", notes: "" });
+  const [generatedSchedules, setGeneratedSchedules] = useState([]);
+  const [form, setForm] = useState({ site: "", type: "OA", assignedTo: "", auditorEmail: "", dueDate: "", frequency: "monthly", notes: "" });
+
+  const buildEmailLink = (s) => {
+    const subject = `MAU Site Audit Assignment – ${s.site} – ${fmt(s.dueDate)}`;
+    const body = `Hi ${s.assignedTo},\n\nYou have been assigned to conduct an Operations Audit (OA) at ${s.site} on ${fmt(s.dueDate)}.\n\nAudit Details:\n• Site: ${s.site}\n• Audit Type: Operations Audit (OA)\n• Scheduled Date: ${fmt(s.dueDate)}\n• Frequency: ${s.frequency}\n${s.notes ? `• Notes: ${s.notes}\n` : ""}\nPlease use the MAU Site Audit app to complete your audit on the assigned date. Log in, tap + OA, select ${s.site}, and submit your findings.\n\nIf you have any questions, please reach out to your manager.\n\nThank you,\nMAU Workforce Solutions`;
+    return `mailto:${s.auditorEmail || ""}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  };
 
   const year = viewDate.getFullYear(), month = viewDate.getMonth();
   const monthName = viewDate.toLocaleString("en-US", { month: "long" });
@@ -380,64 +403,53 @@ const CalendarView = ({ audits, schedules, onAddSchedule, onDeleteSchedule }) =>
     const yr = nextMonth.getFullYear();
     const mo = nextMonth.getMonth();
     const daysInNextMonth = new Date(yr, mo + 1, 0).getDate();
+    const monthLabel = nextMonth.toLocaleString("en-US", { month: "long", year: "numeric" });
 
-    // Get unique auditors from existing audits (name + site pairs)
-    const auditorMap = {};
-    audits.forEach(a => {
-      if (a.auditorName && a.auditorSite) auditorMap[a.auditorSite] = a.auditorName;
-    });
+    // Pick 2 random sites
+    const shuffled = [...SITES].sort(() => Math.random() - 0.5);
+    const pickedSites = shuffled.slice(0, 2);
 
-    // Shuffle sites so assignment is random
-    const shuffledSites = [...SITES].sort(() => Math.random() - 0.5);
-    const auditorSites = Object.keys(auditorMap);
+    // Pick 2 random auditors (different from each other)
+    const shuffledAuditors = [...AUDITORS].sort(() => Math.random() - 0.5);
 
-    const newSchedules = SITES.map((site, i) => {
-      // Pick a random weekday in next month
-      let day;
-      let attempts = 0;
+    const getRandomWeekday = () => {
+      let day, attempts = 0;
       do {
         day = Math.floor(Math.random() * daysInNextMonth) + 1;
         const dow = new Date(yr, mo, day).getDay();
         if (dow !== 0 && dow !== 6) break;
-        attempts++;
-      } while (attempts < 20);
+      } while (++attempts < 30);
+      return day;
+    };
 
+    const newSchedules = pickedSites.map((site, i) => {
+      const auditor = shuffledAuditors[i % shuffledAuditors.length];
+      const day = getRandomWeekday();
       const dueDate = `${yr}-${String(mo + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-
-      // Assign auditor from a different site (rotate through available auditors)
-      let assignedTo = "";
-      if (auditorSites.length > 0) {
-        // Pick an auditor not from this site
-        const others = auditorSites.filter(s => s !== site);
-        if (others.length > 0) {
-          const pick = others[i % others.length];
-          assignedTo = auditorMap[pick];
-        } else {
-          assignedTo = auditorMap[auditorSites[0]];
-        }
-      }
-
       return {
         id: `gen-${Date.now()}-${i}`,
         site,
         type: "OA",
-        assignedTo,
+        assignedTo: auditor.name,
+        auditorEmail: auditor.email,
         dueDate,
         frequency: "monthly",
-        notes: `Auto-generated — ${nextMonth.toLocaleString("en-US", { month: "long", year: "numeric" })}`,
+        notes: `Auto-generated — ${monthLabel}`,
         createdAt: Date.now()
       };
     });
 
     newSchedules.forEach(s => onAddSchedule(s));
-    // Jump calendar to next month
+    setGeneratedSchedules(newSchedules);
     setViewDate(nextMonth);
   };
 
   const handleSave = () => {
     if (!form.site || !form.dueDate) return;
-    onAddSchedule({ ...form, id: Date.now().toString(), createdAt: Date.now() });
-    setForm({ site: "", type: "OA", assignedTo: "", dueDate: "", frequency: "monthly", notes: "" });
+    const newSched = { ...form, id: Date.now().toString(), createdAt: Date.now() };
+    onAddSchedule(newSched);
+    setGeneratedSchedules([newSched]);
+    setForm({ site: "", type: "OA", assignedTo: "", auditorEmail: "", dueDate: "", frequency: "monthly", notes: "" });
     setShowForm(false);
   };
 
@@ -559,6 +571,31 @@ const CalendarView = ({ audits, schedules, onAddSchedule, onDeleteSchedule }) =>
         </button>
       </div>
 
+      {/* Generated schedules result */}
+      {generatedSchedules.length > 0 && (
+        <div style={{ background: "white", borderRadius: 12, border: "0.5px solid #E2E8F0", padding: 14, marginTop: 12 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#0F172A", marginBottom: 10 }}>
+            <i className="ti ti-check" style={{ color: "#16A34A", marginRight: 6 }} />
+            {generatedSchedules.length} audits scheduled — send notifications:
+          </div>
+          {generatedSchedules.map((s, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", borderBottom: i < generatedSchedules.length - 1 ? "0.5px solid #F1F5F9" : "none" }}>
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                  <TypeBadge type={s.type} />
+                  <span style={{ fontWeight: 600, fontSize: 14, color: "#1E293B" }}>{s.site}</span>
+                </div>
+                <div style={{ fontSize: 12, color: "#64748B" }}>{fmt(s.dueDate)} · {s.assignedTo}</div>
+              </div>
+              <a href={buildEmailLink(s)} style={{ background: "#003A6B", color: "white", borderRadius: 8, padding: "6px 12px", fontSize: 12, fontWeight: 600, textDecoration: "none", display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
+                <i className="ti ti-mail" style={{ fontSize: 14 }} />Email
+              </a>
+            </div>
+          ))}
+          <button onClick={() => setGeneratedSchedules([])} style={{ marginTop: 10, background: "none", border: "none", color: "#94A3B8", fontSize: 12, cursor: "pointer", padding: 0 }}>Dismiss</button>
+        </div>
+      )}
+
       {showForm && (
         <div style={{ background: "white", borderRadius: 12, border: "0.5px solid #E2E8F0", padding: 16, marginTop: 12 }}>
           <h3 style={{ margin: "0 0 16px", fontSize: 16, fontWeight: 700, color: "#0F172A" }}>Schedule an audit</h3>
@@ -572,7 +609,13 @@ const CalendarView = ({ audits, schedules, onAddSchedule, onDeleteSchedule }) =>
             {["OA","SA"].map(t => (<button key={t} onClick={() => setForm(f => ({ ...f, type: t }))} style={{ flex: 1, padding: 10, border: `2px solid ${form.type === t ? "#003A6B" : "#E2E8F0"}`, borderRadius: 8, background: form.type === t ? "#EFF6FF" : "white", color: form.type === t ? "#003A6B" : "#64748B", fontWeight: 700, cursor: "pointer" }}>{t}</button>))}
           </div>
           <label style={lbl}>Assigned to</label>
-          <input value={form.assignedTo} onChange={e => setForm(f => ({ ...f, assignedTo: e.target.value }))} placeholder="Auditor name" style={{ ...inp, marginBottom: 12 }} />
+          <select value={form.assignedTo} onChange={e => {
+            const a = AUDITORS.find(a => a.name === e.target.value);
+            setForm(f => ({ ...f, assignedTo: e.target.value, auditorEmail: a?.email || "" }));
+          }} style={{ ...inp, marginBottom: 12 }}>
+            <option value="">Select auditor...</option>
+            {AUDITORS.map(a => <option key={a.email} value={a.name}>{a.name}</option>)}
+          </select>
           <label style={lbl}>Due date *</label>
           <input type="date" value={form.dueDate} onChange={e => setForm(f => ({ ...f, dueDate: e.target.value }))} style={{ ...inp, marginBottom: 12 }} />
           <label style={lbl}>Frequency</label>
