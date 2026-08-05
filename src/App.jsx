@@ -358,6 +358,7 @@ const CalendarView = ({ audits, schedules, onAddSchedule, onDeleteSchedule }) =>
   const [selectedDay, setSelectedDay] = useState(today.getDate());
   const [showForm, setShowForm] = useState(false);
   const [generatedSchedules, setGeneratedSchedules] = useState([]);
+  const [emailSentIds, setEmailSentIds] = useState({});
   const [form, setForm] = useState({ site: "", type: "OA", assignedTo: "", auditorEmail: "", dueDate: "", frequency: "monthly", notes: "" });
 
   const buildEmailLink = (s) => {
@@ -490,6 +491,7 @@ const CalendarView = ({ audits, schedules, onAddSchedule, onDeleteSchedule }) =>
               </div>
               <div style={{ fontSize: 11, color: "#374151", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.site}</div>
               <div style={{ fontSize: 10, color: "#94A3B8" }}>{fmt(s.dueDate)}</div>
+              {s.emailSent && <div style={{ fontSize: 10, color: "#16A34A", fontWeight: 600 }}>✓ Email sent</div>}
             </button>
           ))}
         </div>
@@ -544,6 +546,7 @@ const CalendarView = ({ audits, schedules, onAddSchedule, onDeleteSchedule }) =>
                 </div>
                 <div style={{ fontSize: 12, color: "#64748B", marginLeft: 14 }}>{s.assignedTo ? `Assigned to: ${s.assignedTo}` : "No assignee"} · {s.frequency}</div>
                 {s.notes && <div style={{ fontSize: 12, color: "#94A3B8", marginLeft: 14, fontStyle: "italic" }}>{s.notes}</div>}
+                {s.emailSent && <div style={{ fontSize: 11, color: "#16A34A", fontWeight: 600, marginLeft: 14, marginTop: 2 }}><i className="ti ti-circle-check" style={{ fontSize: 11 }} /> Email sent</div>}
               </div>
               <button onClick={() => onDeleteSchedule(s.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#CBD5E1", padding: 4 }}><i className="ti ti-trash" style={{ fontSize: 16 }} /></button>
             </div>
@@ -619,7 +622,9 @@ const CalendarView = ({ audits, schedules, onAddSchedule, onDeleteSchedule }) =>
             <i className="ti ti-check" style={{ color: "#16A34A", marginRight: 6 }} />
             {generatedSchedules.length} audits scheduled — send notifications:
           </div>
-          {generatedSchedules.map((s, i) => (
+          {generatedSchedules.map((s, i) => {
+            const sent = emailSentIds[s.id] || s.emailSent;
+            return (
             <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", borderBottom: i < generatedSchedules.length - 1 ? "0.5px solid #F1F5F9" : "none" }}>
               <div>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
@@ -628,11 +633,23 @@ const CalendarView = ({ audits, schedules, onAddSchedule, onDeleteSchedule }) =>
                 </div>
                 <div style={{ fontSize: 12, color: "#64748B" }}>{fmt(s.dueDate)} · {s.assignedTo}</div>
               </div>
-              <a href={buildEmailLink(s)} style={{ background: "#003A6B", color: "white", borderRadius: 8, padding: "6px 12px", fontSize: 12, fontWeight: 600, textDecoration: "none", display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
-                <i className="ti ti-mail" style={{ fontSize: 14 }} />Email
-              </a>
+              {sent ? (
+                <div style={{ display: "flex", alignItems: "center", gap: 4, color: "#16A34A", fontSize: 12, fontWeight: 600, flexShrink: 0 }}>
+                  <i className="ti ti-circle-check" style={{ fontSize: 16 }} />Email sent
+                </div>
+              ) : (
+                <a href={buildEmailLink(s)} onClick={() => {
+                  const updated = { ...s, emailSent: true };
+                  setEmailSentIds(prev => ({ ...prev, [s.id]: true }));
+                  setGeneratedSchedules(prev => prev.map(x => x.id === s.id ? updated : x));
+                  onAddSchedule(updated); // upsert to save emailSent flag
+                }} style={{ background: "#003A6B", color: "white", borderRadius: 8, padding: "6px 12px", fontSize: 12, fontWeight: 600, textDecoration: "none", display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
+                  <i className="ti ti-mail" style={{ fontSize: 14 }} />Send email
+                </a>
+              )}
             </div>
-          ))}
+            );
+          })}
           <button onClick={() => setGeneratedSchedules([])} style={{ marginTop: 10, background: "none", border: "none", color: "#94A3B8", fontSize: 12, cursor: "pointer", padding: 0 }}>Dismiss</button>
         </div>
       )}
