@@ -433,6 +433,8 @@ const CalendarView = ({ audits, schedules, onAddSchedule, onDeleteSchedule }) =>
     // Jump calendar to next month
     setViewDate(nextMonth);
   };
+
+  const handleSave = () => {
     if (!form.site || !form.dueDate) return;
     onAddSchedule({ ...form, id: Date.now().toString(), createdAt: Date.now() });
     setForm({ site: "", type: "OA", assignedTo: "", dueDate: "", frequency: "monthly", notes: "" });
