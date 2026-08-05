@@ -404,6 +404,12 @@ const CalendarView = ({ audits, schedules, onAddSchedule, onDeleteSchedule }) =>
     const mo = nextMonth.getMonth();
     const daysInNextMonth = new Date(yr, mo + 1, 0).getDate();
     const monthLabel = nextMonth.toLocaleString("en-US", { month: "long", year: "numeric" });
+    const monthPrefix = `${yr}-${String(mo + 1).padStart(2, "0")}`;
+
+    // Delete ALL existing schedules for next month before generating new ones
+    schedules
+      .filter(s => s.dueDate && s.dueDate.startsWith(monthPrefix))
+      .forEach(s => onDeleteSchedule(s.id));
 
     // Pick 2 random sites
     const shuffled = [...SITES].sort(() => Math.random() - 0.5);
