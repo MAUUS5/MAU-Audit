@@ -1503,20 +1503,6 @@ export default function App() {
       setAudits(a);
       setSchedules(s);
       setLoading(false);
-
-      // Auto-scheduler: on the 1st of each month, generate next month's schedule
-      // if it hasn't been done yet
-      const today = new Date();
-      if (today.getDate() === 1) {
-        const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
-        const yr = nextMonth.getFullYear();
-        const mo = nextMonth.getMonth();
-        const monthPrefix = `${yr}-${String(mo + 1).padStart(2, '0')}`;
-        const alreadyScheduled = s.some(sched => sched.dueDate?.startsWith(monthPrefix));
-        if (!alreadyScheduled) {
-          runAutoSchedule(s, a);
-        }
-      }
     });
   }, []);
 
