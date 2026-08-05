@@ -1423,6 +1423,62 @@ const Training = () => {
   );
 };
 
+// ─────────────────────────── AUTO-SCHEDULER ───────────────────────────
+// Runs automatically when the app loads on the 1st of each month.
+// Generates 2 random sites × 2 auditors (OA + SA) for next month.
+
+const runAutoSchedule = async (currentSchedules, currentAudits) => {
+  const now = new Date();
+  const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  const yr = nextMonth.getFullYear();
+  const mo = nextMonth.getMonth();
+  const daysInMonth = new Date(yr, mo + 1, 0).getDate();
+  const monthLabel = nextMonth.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+  const monthPrefix = `${yr}-${String(mo + 1).padStart(2, '0')}`;
+
+  // Delete any existing schedules for next month
+  const toDelete = currentSchedules.filter(s => s.dueDate?.startsWith(monthPrefix));
+  for (const s of toDelete) await deleteSchedule(s.id);
+
+  // Pick 2 random sites and 4 random auditors
+  const shuffledSites = [...SITES].sort(() => Math.random() - 0.5).slice(0, 2);
+  const shuffledAuditors = [...AUDITORS].sort(() => Math.random() - 0.5);
+
+  const getRandomWeekday = () => {
+    let day, attempts = 0;
+    do {
+      day = Math.floor(Math.random() * daysInMonth) + 1;
+      const dow = new Date(yr, mo, day).getDay();
+      if (dow !== 0 && dow !== 6) break;
+    } while (++attempts < 30);
+    return day;
+  };
+
+  const newSchedules = shuffledSites.flatMap((site, i) => {
+    const day = getRandomWeekday();
+    const dueDate = `${yr}-${String(mo + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    const auditorOA = shuffledAuditors[(i * 2) % shuffledAuditors.length];
+    const auditorSA = shuffledAuditors[(i * 2 + 1) % shuffledAuditors.length];
+    return [
+      { type: 'OA', auditor: auditorOA },
+      { type: 'SA', auditor: auditorSA }
+    ].map(({ type, auditor }) => ({
+      id: `auto-${Date.now()}-${i}-${type}`,
+      site, type,
+      assignedTo: auditor.name,
+      auditorEmail: auditor.email,
+      dueDate,
+      frequency: 'monthly',
+      notes: `Auto-generated — ${monthLabel}`,
+      createdAt: Date.now()
+    }));
+  });
+
+  for (const s of newSchedules) await saveSchedule(s);
+  console.log(`Auto-scheduler: generated ${newSchedules.length} audits for ${monthLabel}`);
+  return newSchedules;
+};
+
 // ─────────────────────────── APP SHELL ───────────────────────────
 
 const TABS = [
@@ -1443,7 +1499,25 @@ export default function App() {
   const [detailAudit, setDetailAudit] = useState(null);
 
   useEffect(() => {
-    Promise.all([loadAudits(), loadSchedules()]).then(([a, s]) => { setAudits(a); setSchedules(s); setLoading(false); });
+    Promise.all([loadAudits(), loadSchedules()]).then(([a, s]) => {
+      setAudits(a);
+      setSchedules(s);
+      setLoading(false);
+
+      // Auto-scheduler: on the 1st of each month, generate next month's schedule
+      // if it hasn't been done yet
+      const today = new Date();
+      if (today.getDate() === 1) {
+        const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+        const yr = nextMonth.getFullYear();
+        const mo = nextMonth.getMonth();
+        const monthPrefix = `${yr}-${String(mo + 1).padStart(2, '0')}`;
+        const alreadyScheduled = s.some(sched => sched.dueDate?.startsWith(monthPrefix));
+        if (!alreadyScheduled) {
+          runAutoSchedule(s, a);
+        }
+      }
+    });
   }, []);
 
   const handleNew = (type) => { setNewType(type); setTab("new"); };
