@@ -359,6 +359,7 @@ const CalendarView = ({ audits, schedules, onAddSchedule, onDeleteSchedule }) =>
   const [showForm, setShowForm] = useState(false);
   const [generatedSchedules, setGeneratedSchedules] = useState([]);
   const [emailSentIds, setEmailSentIds] = useState({});
+  const [reassigningId, setReassigningId] = useState(null);
   const [form, setForm] = useState({ site: "", type: "OA", assignedTo: "", auditorEmail: "", dueDate: "", frequency: "monthly", notes: "" });
 
   const buildEmailLink = (s) => {
@@ -535,22 +536,50 @@ const CalendarView = ({ audits, schedules, onAddSchedule, onDeleteSchedule }) =>
       {selectedDay && (selCompleted.length > 0 || selScheduled.length > 0) && (
         <div style={{ background: "white", borderRadius: 12, border: "0.5px solid #E2E8F0", padding: 14, marginBottom: 14 }}>
           <div style={{ fontWeight: 700, fontSize: 15, color: "#0F172A", marginBottom: 10 }}>{monthName} {selectedDay}</div>
-          {selScheduled.map((s, i) => (
-            <div key={i} style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", padding: "8px 0", borderBottom: "0.5px solid #F1F5F9" }}>
-              <div>
-                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
-                  <div style={{ width: 8, height: 8, borderRadius: "50%", background: isOverdue(s) ? "#DC2626" : "#0369A1", flexShrink: 0 }} />
-                  <span style={{ fontSize: 14, fontWeight: 600, color: "#1E293B" }}>{s.site}</span>
-                  <TypeBadge type={s.type} />
-                  {isOverdue(s) && <span style={{ fontSize: 11, color: "#DC2626", fontWeight: 600 }}>OVERDUE</span>}
+          {selScheduled.map((s, i) => {
+            const isReassigning = reassigningId === s.id;
+            return (
+            <div key={i} style={{ padding: "10px 0", borderBottom: "0.5px solid #F1F5F9" }}>
+              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
+                    <div style={{ width: 8, height: 8, borderRadius: "50%", background: isOverdue(s) ? "#DC2626" : "#0369A1", flexShrink: 0 }} />
+                    <span style={{ fontSize: 14, fontWeight: 600, color: "#1E293B" }}>{s.site}</span>
+                    <TypeBadge type={s.type} />
+                    {isOverdue(s) && <span style={{ fontSize: 11, color: "#DC2626", fontWeight: 600 }}>OVERDUE</span>}
+                  </div>
+                  <div style={{ fontSize: 12, color: "#64748B", marginLeft: 14 }}>{s.assignedTo ? `Assigned to: ${s.assignedTo}` : "No assignee"} · {s.frequency}</div>
+                  {s.notes && <div style={{ fontSize: 12, color: "#94A3B8", marginLeft: 14, fontStyle: "italic" }}>{s.notes}</div>}
+                  {s.emailSent && <div style={{ fontSize: 11, color: "#16A34A", fontWeight: 600, marginLeft: 14, marginTop: 2 }}><i className="ti ti-circle-check" style={{ fontSize: 11 }} /> Email sent</div>}
                 </div>
-                <div style={{ fontSize: 12, color: "#64748B", marginLeft: 14 }}>{s.assignedTo ? `Assigned to: ${s.assignedTo}` : "No assignee"} · {s.frequency}</div>
-                {s.notes && <div style={{ fontSize: 12, color: "#94A3B8", marginLeft: 14, fontStyle: "italic" }}>{s.notes}</div>}
-                {s.emailSent && <div style={{ fontSize: 11, color: "#16A34A", fontWeight: 600, marginLeft: 14, marginTop: 2 }}><i className="ti ti-circle-check" style={{ fontSize: 11 }} /> Email sent</div>}
+                <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
+                  <button onClick={() => setReassigningId(isReassigning ? null : s.id)}
+                    style={{ background: isReassigning ? "#EFF6FF" : "none", border: isReassigning ? "1px solid #BFDBFE" : "none", borderRadius: 6, cursor: "pointer", color: "#0369A1", padding: "4px 6px", fontSize: 11, fontWeight: 600 }}>
+                    <i className="ti ti-user-edit" style={{ fontSize: 14 }} />
+                  </button>
+                  <button onClick={() => { if (window.confirm(`Delete this ${s.type} audit for ${s.site}?`)) onDeleteSchedule(s.id); }}
+                    style={{ background: "none", border: "none", cursor: "pointer", color: "#CBD5E1", padding: 4 }}>
+                    <i className="ti ti-trash" style={{ fontSize: 16 }} />
+                  </button>
+                </div>
               </div>
-              <button onClick={() => onDeleteSchedule(s.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#CBD5E1", padding: 4 }}><i className="ti ti-trash" style={{ fontSize: 16 }} /></button>
+              {isReassigning && (
+                <div style={{ marginLeft: 14, marginTop: 8, display: "flex", gap: 8, alignItems: "center" }}>
+                  <select defaultValue={s.assignedTo} onChange={e => {
+                    const auditor = AUDITORS.find(a => a.name === e.target.value);
+                    const updated = { ...s, assignedTo: auditor.name, auditorEmail: auditor.email, emailSent: false };
+                    onAddSchedule(updated);
+                    setReassigningId(null);
+                  }} style={{ flex: 1, padding: "7px 10px", border: "1px solid #BFDBFE", borderRadius: 8, fontSize: 13, fontFamily: "inherit" }}>
+                    <option value="">Select new auditor...</option>
+                    {AUDITORS.map(a => <option key={a.email} value={a.name}>{a.name}</option>)}
+                  </select>
+                  <button onClick={() => setReassigningId(null)} style={{ background: "none", border: "none", color: "#94A3B8", cursor: "pointer", fontSize: 12 }}>Cancel</button>
+                </div>
+              )}
             </div>
-          ))}
+            );
+          })}
           {selCompleted.map((a, i) => {
             const sc = calcScore(a);
             return (
