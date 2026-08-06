@@ -553,6 +553,19 @@ const CalendarView = ({ audits, schedules, onAddSchedule, onDeleteSchedule }) =>
                   {s.emailSent && <div style={{ fontSize: 11, color: "#16A34A", fontWeight: 600, marginLeft: 14, marginTop: 2 }}><i className="ti ti-circle-check" style={{ fontSize: 11 }} /> Email sent</div>}
                 </div>
                 <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
+                  {/* Email button */}
+                  {s.emailSent ? (
+                    <div style={{ display: "flex", alignItems: "center", gap: 3, color: "#16A34A", fontSize: 11, fontWeight: 600, padding: "4px 6px" }}>
+                      <i className="ti ti-circle-check" style={{ fontSize: 14 }} />
+                    </div>
+                  ) : (
+                    <a href={buildEmailLink(s)} onClick={() => {
+                      const updated = { ...s, emailSent: true };
+                      onAddSchedule(updated);
+                    }} style={{ background: "#003A6B", color: "white", borderRadius: 6, padding: "4px 8px", fontSize: 11, fontWeight: 600, textDecoration: "none", display: "flex", alignItems: "center", gap: 3, flexShrink: 0 }}>
+                      <i className="ti ti-mail" style={{ fontSize: 13 }} />Email
+                    </a>
+                  )}
                   <button onClick={() => setReassigningId(isReassigning ? null : s.id)}
                     style={{ background: isReassigning ? "#EFF6FF" : "none", border: isReassigning ? "1px solid #BFDBFE" : "none", borderRadius: 6, cursor: "pointer", color: "#0369A1", padding: "4px 6px", fontSize: 11, fontWeight: 600 }}>
                     <i className="ti ti-user-edit" style={{ fontSize: 14 }} />
