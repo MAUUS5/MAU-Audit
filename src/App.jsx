@@ -1136,20 +1136,51 @@ const Benchmark = ({ audits, onUpdateAudit, onRefresh }) => {
   const sitesWithAudits = siteData.filter(s => s.siteAudits.length > 0).length;
   const overallAvg = audits.length ? Math.round(audits.reduce((s, a) => s + calcScore(a).pct, 0) / audits.length) : 0;
 
+  const getNotesAndActions = (audit) => {
+    if (!audit) return { notes: [], actions: [] };
+    const notes = [], actions = [];
+    audit.sections.forEach((sec, si) => {
+      sec.items.forEach((item, ii) => {
+        if (item.comment?.trim()) notes.push({ section: sec.name, item: item.name, comment: item.comment, score: item.score });
+        if (item.actionItem?.trim()) actions.push({ section: sec.name, item: item.name, actionItem: item.actionItem, actionDue: item.actionDue, actionCompleted: item.actionCompleted, actionCompletedDate: item.actionCompletedDate, score: item.score, secIdx: si, itemIdx: ii, auditId: audit.id });
+      });
+    });
+    return { notes, actions };
+  };
+
+  const openCount = (actions) => actions.filter(a => !a.actionCompleted).length;
+  const closedCount = (actions) => actions.filter(a => a.actionCompleted).length;
+
+  const handleMarkComplete = (action) => { setCompletingItem(action); setCompletionDate(new Date().toISOString().split("T")[0]); };
+
+  const handleSaveCompletion = async () => {
+    if (!completingItem) return;
+    const audit = audits.find(a => a.id === completingItem.auditId);
+    if (!audit) return;
+    const updatedAudit = { ...audit, sections: audit.sections.map((sec, si) => si !== completingItem.secIdx ? sec : { ...sec, items: sec.items.map((item, ii) => ii !== completingItem.itemIdx ? item : { ...item, actionCompleted: true, actionCompletedDate: completionDate }) }) };
+    await onUpdateAudit(updatedAudit);
+    setCompletingItem(null);
+  };
+
   return (
     <div style={{ padding: 16 }}>
-      {/* Header stats */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 20 }}>
-        {[
-          { label: "Total audits", val: totalAudits, color: "#003A6B" },
-          { label: "Overall avg", val: `${overallAvg}%`, color: gradeColor(overallAvg) },
-          { label: "Sites active", val: `${sitesWithAudits}/${SITES.length}`, color: "#003A6B" }
-        ].map(st => (
-          <div key={st.label} style={{ background: "white", borderRadius: 12, padding: "12px 10px", border: "0.5px solid #E2E8F0", textAlign: "center" }}>
-            <div style={{ fontWeight: 700, fontSize: 20, color: st.color, lineHeight: 1.1 }}>{st.val}</div>
-            <div style={{ fontSize: 11, color: "#64748B", marginTop: 3 }}>{st.label}</div>
-          </div>
-        ))}
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 20 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, flex: 1 }}>
+          {[
+            { label: "Total audits", val: totalAudits, color: "#003A6B" },
+            { label: "Overall avg", val: `${overallAvg}%`, color: gradeColor(overallAvg) },
+            { label: "Sites active", val: `${sitesWithAudits}/${SITES.length}`, color: "#003A6B" }
+          ].map(st => (
+            <div key={st.label} style={{ background: "white", borderRadius: 12, padding: "12px 10px", border: "0.5px solid #E2E8F0", textAlign: "center" }}>
+              <div style={{ fontWeight: 700, fontSize: 20, color: st.color, lineHeight: 1.1 }}>{st.val}</div>
+              <div style={{ fontSize: 11, color: "#64748B", marginTop: 3 }}>{st.label}</div>
+            </div>
+          ))}
+        </div>
+        <button onClick={handleRefresh} style={{ background: "white", border: "0.5px solid #E2E8F0", borderRadius: 12, padding: "10px 12px", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 2, flexShrink: 0 }}>
+          <i className="ti ti-refresh" style={{ fontSize: 20, color: refreshing ? "#94A3B8" : "#003A6B" }} />
+          <span style={{ fontSize: 9, color: "#94A3B8", fontWeight: 500 }}>{lastRefreshed ? lastRefreshed.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : 'Refresh'}</span>
+        </button>
       </div>
 
       <div style={{ fontSize: 11, fontWeight: 700, color: "#94A3B8", letterSpacing: "0.07em", textTransform: "uppercase", marginBottom: 12 }}>All sites</div>
@@ -1157,6 +1188,12 @@ const Benchmark = ({ audits, onUpdateAudit, onRefresh }) => {
       {siteData.map(({ site, siteAudits, latestOA, latestSA, oaScore, saScore, oaDelta, oaSections }) => {
         const hasData = siteAudits.length > 0;
         const isOpen = !!expanded[site];
+        const { notes: oaNotes, actions: oaActions } = getNotesAndActions(latestOA);
+        const { notes: saNotes, actions: saActions } = getNotesAndActions(latestSA);
+        const allNotes = [...oaNotes, ...saNotes];
+        const allActions = [...oaActions, ...saActions];
+        const openActions = openCount(allActions);
+        const closedActions = closedCount(allActions);
 
         return (
           <div key={site} style={{ marginBottom: 10 }}>
@@ -1248,6 +1285,58 @@ const Benchmark = ({ audits, onUpdateAudit, onRefresh }) => {
                     })}
                   </div>
                 )}
+
+                {/* Notes */}
+                <div style={{ marginBottom: 14 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "#374151", marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
+                    <i className="ti ti-notes" style={{ fontSize: 14 }} />Notes from latest audit
+                  </div>
+                  {allNotes.length === 0 ? (
+                    <div style={{ fontSize: 12, color: "#94A3B8", fontStyle: "italic", padding: "4px 0" }}>No notes recorded.</div>
+                  ) : allNotes.map((n, i) => (
+                    <div key={i} style={{ background: "white", borderRadius: 8, border: "0.5px solid #E2E8F0", padding: "8px 10px", marginBottom: 6, borderLeft: "3px solid #E2E8F0" }}>
+                      <div style={{ fontSize: 11, color: "#94A3B8", marginBottom: 2 }}>{n.section} — {n.item}</div>
+                      <div style={{ fontSize: 12, color: "#374151", fontStyle: "italic" }}>"{n.comment}"</div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Action Items */}
+                <div style={{ marginBottom: 14 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "#374151", marginBottom: 8, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                    <i className="ti ti-clipboard-list" style={{ fontSize: 14 }} />Action items
+                    {openActions > 0 && <span style={{ fontSize: 11, color: "#DC2626", fontWeight: 600, background: "#FEE2E2", padding: "1px 6px", borderRadius: 10 }}>{openActions} open</span>}
+                    {closedActions > 0 && <span style={{ fontSize: 11, color: "#16A34A", fontWeight: 600, background: "#DCFCE7", padding: "1px 6px", borderRadius: 10 }}>{closedActions} completed</span>}
+                  </div>
+                  {allActions.length === 0 ? (
+                    <div style={{ fontSize: 12, color: "#94A3B8", fontStyle: "italic", padding: "4px 0" }}>No action items recorded.</div>
+                  ) : allActions.map((a, i) => {
+                    const isComp = completingItem?.auditId === a.auditId && completingItem?.secIdx === a.secIdx && completingItem?.itemIdx === a.itemIdx;
+                    return (
+                      <div key={i} style={{ background: "white", borderRadius: 8, border: "0.5px solid #E2E8F0", padding: "10px 12px", marginBottom: 8, borderLeft: `3px solid ${a.actionCompleted ? "#16A34A" : "#DC2626"}` }}>
+                        <div style={{ fontSize: 11, color: "#94A3B8", marginBottom: 2 }}>{a.section} — {a.item}</div>
+                        <div style={{ fontSize: 13, color: "#1E293B", fontWeight: 500, marginBottom: 6 }}>{a.actionItem}</div>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 6 }}>
+                          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                            {a.actionDue && <span style={{ fontSize: 11, color: "#EA580C" }}><i className="ti ti-calendar" style={{ fontSize: 11 }} /> Due: {fmt(a.actionDue)}</span>}
+                            {a.actionCompleted ? <span style={{ fontSize: 11, color: "#16A34A", fontWeight: 600 }}><i className="ti ti-circle-check" style={{ fontSize: 11 }} /> Completed: {fmt(a.actionCompletedDate)}</span> : <span style={{ fontSize: 11, color: "#DC2626", fontWeight: 600 }}>Open</span>}
+                          </div>
+                          {!a.actionCompleted && !isComp && <button onClick={() => handleMarkComplete(a)} style={{ background: "#003A6B", color: "white", border: "none", borderRadius: 6, padding: "4px 10px", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>Mark complete</button>}
+                        </div>
+                        {isComp && (
+                          <div style={{ marginTop: 10, padding: 10, background: "#F0FDF4", borderRadius: 8, border: "1px solid #BBF7D0" }}>
+                            <div style={{ fontSize: 12, fontWeight: 600, color: "#065F46", marginBottom: 6 }}>Completion date</div>
+                            <input type="date" value={completionDate} onChange={e => setCompletionDate(e.target.value)} style={{ width: "100%", padding: "8px 10px", border: "1px solid #86EFAC", borderRadius: 6, fontSize: 13, boxSizing: "border-box", fontFamily: "inherit", marginBottom: 8 }} />
+                            <div style={{ display: "flex", gap: 8 }}>
+                              <button onClick={handleSaveCompletion} style={{ flex: 1, background: "#16A34A", color: "white", border: "none", borderRadius: 6, padding: 8, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Save</button>
+                              <button onClick={() => setCompletingItem(null)} style={{ flex: 1, background: "#F1F5F9", color: "#64748B", border: "none", borderRadius: 6, padding: 8, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Cancel</button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
 
                 {/* Score guide */}
                 <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 6 }}>
