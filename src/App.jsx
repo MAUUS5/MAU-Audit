@@ -1095,12 +1095,19 @@ const History = ({ audits, onView }) => {
 
 // ─────────────────────────── SITE DASHBOARD ───────────────────────────
 
-const Benchmark = ({ audits, onUpdateAudit }) => {
+const Benchmark = ({ audits, onUpdateAudit, onRefresh }) => {
   const [expanded, setExpanded] = useState({});
-  const [completingItem, setCompletingItem] = useState(null); // { auditId, secIdx, itemIdx }
+  const [completingItem, setCompletingItem] = useState(null);
   const [completionDate, setCompletionDate] = useState(new Date().toISOString().split("T")[0]);
+  const [refreshing, setRefreshing] = useState(false);
 
   const toggle = (site) => setExpanded(p => ({ ...p, [site]: !p[site] }));
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await onRefresh();
+    setRefreshing(false);
+  };
 
   // Build per-site data
   const siteData = SITES.map(site => {
@@ -1161,18 +1168,24 @@ const Benchmark = ({ audits, onUpdateAudit }) => {
 
   return (
     <div style={{ padding: 16 }}>
-      {/* Header stats */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 20 }}>
-        {[
-          { label: "Total audits", val: totalAudits, color: "#003A6B" },
-          { label: "Overall avg", val: `${overallAvg}%`, color: gradeColor(overallAvg) },
-          { label: "Sites active", val: `${sitesWithAudits}/${SITES.length}`, color: "#003A6B" }
-        ].map(st => (
-          <div key={st.label} style={{ background: "white", borderRadius: 12, padding: "12px 10px", border: "0.5px solid #E2E8F0", textAlign: "center" }}>
-            <div style={{ fontWeight: 700, fontSize: 20, color: st.color, lineHeight: 1.1 }}>{st.val}</div>
-            <div style={{ fontSize: 11, color: "#64748B", marginTop: 3 }}>{st.label}</div>
-          </div>
-        ))}
+      {/* Header stats + refresh */}
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 20 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, flex: 1 }}>
+          {[
+            { label: "Total audits", val: totalAudits, color: "#003A6B" },
+            { label: "Overall avg", val: `${overallAvg}%`, color: gradeColor(overallAvg) },
+            { label: "Sites active", val: `${sitesWithAudits}/${SITES.length}`, color: "#003A6B" }
+          ].map(st => (
+            <div key={st.label} style={{ background: "white", borderRadius: 12, padding: "12px 10px", border: "0.5px solid #E2E8F0", textAlign: "center" }}>
+              <div style={{ fontWeight: 700, fontSize: 20, color: st.color, lineHeight: 1.1 }}>{st.val}</div>
+              <div style={{ fontSize: 11, color: "#64748B", marginTop: 3 }}>{st.label}</div>
+            </div>
+          ))}
+        </div>
+        <button onClick={handleRefresh} style={{ background: "white", border: "0.5px solid #E2E8F0", borderRadius: 12, padding: "10px 12px", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 2, flexShrink: 0 }}>
+          <i className="ti ti-refresh" style={{ fontSize: 20, color: refreshing ? "#94A3B8" : "#003A6B", animation: refreshing ? "spin 0.8s linear infinite" : "none" }} />
+          <span style={{ fontSize: 9, color: "#94A3B8", fontWeight: 500 }}>Refresh</span>
+        </button>
       </div>
 
       <div style={{ fontSize: 11, fontWeight: 700, color: "#94A3B8", letterSpacing: "0.07em", textTransform: "uppercase", marginBottom: 12 }}>All sites</div>
@@ -1886,7 +1899,7 @@ export default function App() {
         {tab === "calendar"  && <CalendarView audits={audits} schedules={schedules} onAddSchedule={handleAddSchedule} onDeleteSchedule={handleDeleteSchedule} />}
         {tab === "new"       && newType && <NewAudit type={newType} onDone={handleDone} onCancel={() => { setNewType(null); setTab("dashboard"); }} />}
         {tab === "history"   && <History audits={audits} onView={handleView} />}
-        {tab === "benchmark" && <Benchmark audits={audits} onUpdateAudit={handleUpdateAudit} />}
+        {tab === "benchmark" && <Benchmark audits={audits} onUpdateAudit={handleUpdateAudit} onRefresh={async () => { const a = await loadAudits(); setAudits(a); }} />}
         {tab === "team"      && <Team audits={audits} />}
         {tab === "training"  && <Training />}
         {tab === "detail"    && detailAudit && <Detail audit={detailAudit} prevAudit={prevAudit(detailAudit)} onBack={handleBack} />}
