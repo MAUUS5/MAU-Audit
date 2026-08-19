@@ -1100,14 +1100,21 @@ const Benchmark = ({ audits, onUpdateAudit, onRefresh }) => {
   const [completingItem, setCompletingItem] = useState(null);
   const [completionDate, setCompletionDate] = useState(new Date().toISOString().split("T")[0]);
   const [refreshing, setRefreshing] = useState(false);
+  const [lastRefreshed, setLastRefreshed] = useState(null);
 
   const toggle = (site) => setExpanded(p => ({ ...p, [site]: !p[site] }));
 
   const handleRefresh = async () => {
     setRefreshing(true);
     await onRefresh();
+    setLastRefreshed(new Date());
     setRefreshing(false);
   };
+
+  // Auto-refresh whenever Compare tab opens
+  useEffect(() => {
+    handleRefresh();
+  }, []);
 
   // Build per-site data
   const siteData = SITES.map(site => {
@@ -1188,7 +1195,10 @@ const Benchmark = ({ audits, onUpdateAudit, onRefresh }) => {
         </button>
       </div>
 
-      <div style={{ fontSize: 11, fontWeight: 700, color: "#94A3B8", letterSpacing: "0.07em", textTransform: "uppercase", marginBottom: 12 }}>All sites</div>
+      <div style={{ fontSize: 11, fontWeight: 700, color: "#94A3B8", letterSpacing: "0.07em", textTransform: "uppercase", marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        All sites
+        {lastRefreshed && <span style={{ fontSize: 10, color: "#CBD5E1", fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>Updated {lastRefreshed.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}</span>}
+      </div>
 
       {siteData.map(({ site, siteAudits, latestOA, latestSA, oaScore, saScore, oaDelta, oaSections }) => {
         const hasData = siteAudits.length > 0;
@@ -1274,63 +1284,65 @@ const Benchmark = ({ audits, onUpdateAudit, onRefresh }) => {
                 )}
 
                 {/* Notes */}
-                {[...oaNotes, ...saNotes].length > 0 && (
-                  <div style={{ marginBottom: 14 }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: "#374151", marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
-                      <i className="ti ti-notes" style={{ fontSize: 14 }} />Notes from audit
-                    </div>
-                    {[...oaNotes, ...saNotes].map((n, i) => (
-                      <div key={i} style={{ background: "white", borderRadius: 8, border: "0.5px solid #E2E8F0", padding: "8px 10px", marginBottom: 6, borderLeft: "3px solid #E2E8F0" }}>
-                        <div style={{ fontSize: 11, color: "#94A3B8", marginBottom: 3 }}>{n.section} — {n.item}</div>
-                        <div style={{ fontSize: 12, color: "#374151", fontStyle: "italic" }}>"{n.comment}"</div>
-                      </div>
-                    ))}
+                <div style={{ marginBottom: 14 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "#374151", marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
+                    <i className="ti ti-notes" style={{ fontSize: 14 }} />Notes from latest audit
                   </div>
-                )}
+                  {[...oaNotes, ...saNotes].length === 0 ? (
+                    <div style={{ fontSize: 12, color: "#94A3B8", fontStyle: "italic", padding: "6px 10px" }}>No notes recorded in this audit.</div>
+                  ) : [...oaNotes, ...saNotes].map((n, i) => (
+                    <div key={i} style={{ background: "white", borderRadius: 8, border: "0.5px solid #E2E8F0", padding: "8px 10px", marginBottom: 6, borderLeft: "3px solid #E2E8F0" }}>
+                      <div style={{ fontSize: 11, color: "#94A3B8", marginBottom: 3 }}>{n.section} — {n.item}</div>
+                      <div style={{ fontSize: 12, color: "#374151", fontStyle: "italic" }}>"{n.comment}"</div>
+                    </div>
+                  ))}
+                </div>
 
                 {/* Action Items */}
-                {allActions.length > 0 && (
-                  <div style={{ marginBottom: 14 }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: "#374151", marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
-                      <i className="ti ti-clipboard-list" style={{ fontSize: 14 }} />Action items
-                      {openActions > 0 && <span style={{ fontSize: 11, color: "#DC2626", fontWeight: 600, background: "#FEE2E2", padding: "1px 6px", borderRadius: 10 }}>{openActions} open</span>}
-                      {closedActions > 0 && <span style={{ fontSize: 11, color: "#16A34A", fontWeight: 600, background: "#DCFCE7", padding: "1px 6px", borderRadius: 10 }}>{closedActions} completed</span>}
-                    </div>
-                    {allActions.map((a, i) => {
-                      const isCompleting = completingItem?.auditId === a.auditId && completingItem?.secIdx === a.secIdx && completingItem?.itemIdx === a.itemIdx;
-                      return (
-                        <div key={i} style={{ background: "white", borderRadius: 8, border: "0.5px solid #E2E8F0", padding: "10px 12px", marginBottom: 8, borderLeft: `3px solid ${a.actionCompleted ? "#16A34A" : "#DC2626"}` }}>
-                          <div style={{ fontSize: 11, color: "#94A3B8", marginBottom: 3 }}>{a.section} — {a.item}</div>
-                          <div style={{ fontSize: 13, color: "#1E293B", fontWeight: 500, marginBottom: 4 }}>{a.actionItem}</div>
-                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 6 }}>
-                            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                              {a.actionDue && <span style={{ fontSize: 11, color: "#EA580C" }}><i className="ti ti-calendar" style={{ fontSize: 11 }} /> Due: {fmt(a.actionDue)}</span>}
-                              {a.actionCompleted && <span style={{ fontSize: 11, color: "#16A34A", fontWeight: 600 }}><i className="ti ti-circle-check" style={{ fontSize: 11 }} /> Completed: {fmt(a.actionCompletedDate)}</span>}
-                              {!a.actionCompleted && <span style={{ fontSize: 11, color: "#DC2626", fontWeight: 600 }}>Open</span>}
-                            </div>
-                            {!a.actionCompleted && !isCompleting && (
-                              <button onClick={() => handleMarkComplete(a)} style={{ background: "#003A6B", color: "white", border: "none", borderRadius: 6, padding: "4px 10px", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
-                                Mark complete
-                              </button>
+                <div style={{ marginBottom: 14 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "#374151", marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
+                    <i className="ti ti-clipboard-list" style={{ fontSize: 14 }} />Action items
+                    {openActions > 0 && <span style={{ fontSize: 11, color: "#DC2626", fontWeight: 600, background: "#FEE2E2", padding: "1px 6px", borderRadius: 10 }}>{openActions} open</span>}
+                    {closedActions > 0 && <span style={{ fontSize: 11, color: "#16A34A", fontWeight: 600, background: "#DCFCE7", padding: "1px 6px", borderRadius: 10 }}>{closedActions} completed</span>}
+                  </div>
+                  {allActions.length === 0 ? (
+                    <div style={{ fontSize: 12, color: "#94A3B8", fontStyle: "italic", padding: "6px 10px" }}>No action items recorded in this audit.</div>
+                  ) : allActions.map((a, i) => {
+                    const isCompleting = completingItem?.auditId === a.auditId && completingItem?.secIdx === a.secIdx && completingItem?.itemIdx === a.itemIdx;
+                    return (
+                      <div key={i} style={{ background: "white", borderRadius: 8, border: "0.5px solid #E2E8F0", padding: "10px 12px", marginBottom: 8, borderLeft: `3px solid ${a.actionCompleted ? "#16A34A" : "#DC2626"}` }}>
+                        <div style={{ fontSize: 11, color: "#94A3B8", marginBottom: 3 }}>{a.section} — {a.item}</div>
+                        <div style={{ fontSize: 13, color: "#1E293B", fontWeight: 500, marginBottom: 4 }}>{a.actionItem}</div>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 6 }}>
+                          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                            {a.actionDue && <span style={{ fontSize: 11, color: "#EA580C" }}><i className="ti ti-calendar" style={{ fontSize: 11 }} /> Due: {fmt(a.actionDue)}</span>}
+                            {a.actionCompleted ? (
+                              <span style={{ fontSize: 11, color: "#16A34A", fontWeight: 600 }}><i className="ti ti-circle-check" style={{ fontSize: 11 }} /> Completed: {fmt(a.actionCompletedDate)}</span>
+                            ) : (
+                              <span style={{ fontSize: 11, color: "#DC2626", fontWeight: 600 }}>Open</span>
                             )}
                           </div>
-                          {/* Completion date picker */}
-                          {isCompleting && (
-                            <div style={{ marginTop: 10, padding: "10px", background: "#F0FDF4", borderRadius: 8, border: "1px solid #BBF7D0" }}>
-                              <div style={{ fontSize: 12, fontWeight: 600, color: "#065F46", marginBottom: 6 }}>Completion date</div>
-                              <input type="date" value={completionDate} onChange={e => setCompletionDate(e.target.value)}
-                                style={{ width: "100%", padding: "8px 10px", border: "1px solid #86EFAC", borderRadius: 6, fontSize: 13, boxSizing: "border-box", fontFamily: "inherit", marginBottom: 8 }} />
-                              <div style={{ display: "flex", gap: 8 }}>
-                                <button onClick={handleSaveCompletion} style={{ flex: 1, background: "#16A34A", color: "white", border: "none", borderRadius: 6, padding: "8px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Save</button>
-                                <button onClick={() => setCompletingItem(null)} style={{ flex: 1, background: "#F1F5F9", color: "#64748B", border: "none", borderRadius: 6, padding: "8px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Cancel</button>
-                              </div>
-                            </div>
+                          {!a.actionCompleted && !isCompleting && (
+                            <button onClick={() => handleMarkComplete(a)} style={{ background: "#003A6B", color: "white", border: "none", borderRadius: 6, padding: "4px 10px", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
+                              Mark complete
+                            </button>
                           )}
                         </div>
-                      );
-                    })}
-                  </div>
-                )}
+                        {isCompleting && (
+                          <div style={{ marginTop: 10, padding: "10px", background: "#F0FDF4", borderRadius: 8, border: "1px solid #BBF7D0" }}>
+                            <div style={{ fontSize: 12, fontWeight: 600, color: "#065F46", marginBottom: 6 }}>Completion date</div>
+                            <input type="date" value={completionDate} onChange={e => setCompletionDate(e.target.value)}
+                              style={{ width: "100%", padding: "8px 10px", border: "1px solid #86EFAC", borderRadius: 6, fontSize: 13, boxSizing: "border-box", fontFamily: "inherit", marginBottom: 8 }} />
+                            <div style={{ display: "flex", gap: 8 }}>
+                              <button onClick={handleSaveCompletion} style={{ flex: 1, background: "#16A34A", color: "white", border: "none", borderRadius: 6, padding: "8px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Save</button>
+                              <button onClick={() => setCompletingItem(null)} style={{ flex: 1, background: "#F1F5F9", color: "#64748B", border: "none", borderRadius: 6, padding: "8px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Cancel</button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
 
                 {/* Score guide */}
                 <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 6 }}>
